@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { ArrowUpDown, TrendingUp } from 'lucide-react';
+import { ArrowUpDown, TrendingUp, Layers } from 'lucide-react';
 import { fmtAum, fmtPrice, fmtPct, fmtBps, chgClass, chgArrow } from '@/lib/format';
 import { CATEGORY_COLORS } from '@/lib/etf-data';
+import HoldingsDrawer from '@/components/HoldingsDrawer';
 import type { ETF } from '@/types';
 
 type SortKey = 'aum' | 'changePct' | 'expenseRatio' | 'ticker';
@@ -19,6 +20,7 @@ export default function ETFTable() {
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<ETF | null>(null);
   const PAGE_SIZE = 15;
 
   useEffect(() => {
@@ -163,6 +165,7 @@ export default function ETFTable() {
               <ColHeader label="Price"    k="aum" style={{ color: 'var(--text-muted)' }} />
               <ColHeader label="1D Chg"   k="changePct" />
               <ColHeader label="Exp Ratio" k="expenseRatio" />
+              <th style={{ padding: '8px 8px', width: '32px' }} />
             </tr>
           </thead>
           <tbody>
@@ -183,8 +186,9 @@ export default function ETFTable() {
                     style={{
                       borderBottom: '1px solid var(--border)',
                       cursor: 'pointer',
+                      background: selected?.ticker === etf.ticker ? 'rgba(59,130,246,0.07)' : undefined,
                     }}
-                    onClick={() => window.open(`https://finance.yahoo.com/quote/${etf.ticker}`, '_blank')}
+                    onClick={() => setSelected(etf)}
                   >
                     {/* Ticker + name */}
                     <td style={{ padding: '9px 12px' }}>
@@ -239,11 +243,43 @@ export default function ETFTable() {
                     <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)' }}>
                       {fmtBps(etf.expenseRatio)}
                     </td>
+
+                    {/* Holdings button */}
+                    <td style={{ padding: '9px 8px', textAlign: 'center', width: '32px' }}>
+                      <button
+                        title="View holdings"
+                        onClick={e => { e.stopPropagation(); setSelected(etf); }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          opacity: 0.35,
+                          transition: 'opacity 0.15s',
+                          color: 'var(--text-secondary)',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = '0.35')}
+                      >
+                        <Layers size={13} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
           </tbody>
         </table>
       </div>
+
+      {/* Holdings drawer */}
+      {selected && (
+        <HoldingsDrawer
+          ticker={selected.ticker}
+          name={selected.name}
+          onClose={() => setSelected(null)}
+        />
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

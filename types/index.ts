@@ -71,6 +71,31 @@ export interface DashboardStats {
   newFilings7d: number;
 }
 
+// ─── Holdings (from SEC EDGAR NPORT-P) ───────────────────────────────────────
+
+export interface Holding {
+  name: string;
+  ticker?: string;       // not always present in NPORT-P
+  weight: number;        // % of portfolio (0–100)
+  value: number;         // USD value
+}
+
+export interface HoldingsResult {
+  holdings: Holding[];
+  asOfDate: string;      // ISO date of the NPORT-P filing
+  source: 'nport' | 'unavailable';
+}
+
+// ─── Fund flows ───────────────────────────────────────────────────────────────
+
+export interface FlowEntry {
+  category: string;
+  weeklyFlow: number;    // net USD flow this week (positive = inflow)
+  monthlyFlow: number;   // net USD flow this month
+  totalAum: number;      // current total AUM for category
+  etfCount: number;
+}
+
 // ─── API response wrappers ────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {

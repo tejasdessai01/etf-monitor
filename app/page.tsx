@@ -8,6 +8,7 @@ import TopMovers from '@/components/TopMovers';
 import NewLaunches from '@/components/NewLaunches';
 import IssuerSnapshot from '@/components/IssuerSnapshot';
 import SocialPanel from '@/components/SocialPanel';
+import FlowsPanel from '@/components/FlowsPanel';
 import { SEED_ETFS } from '@/lib/etf-data';
 import { fmtAum } from '@/lib/format';
 
@@ -27,7 +28,7 @@ export default function DashboardPage() {
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 340px',
-          gridTemplateRows: 'auto auto',
+          gridTemplateRows: 'auto auto auto',
           gap: '12px',
           padding: '12px',
           maxWidth: '1600px',
@@ -76,6 +77,13 @@ export default function DashboardPage() {
           <div style={{ flexShrink: 0 }}>
             <SocialPanel />
           </div>
+        </div>
+
+        {/* ── Row 3: Fund Flows (full width) ──────────────────────────────── */}
+        <div style={{ height: '340px', gridColumn: '1 / -1' }}>
+          <Suspense fallback={<PanelSkeleton height={340} />}>
+            <FlowsPanel />
+          </Suspense>
         </div>
       </main>
 

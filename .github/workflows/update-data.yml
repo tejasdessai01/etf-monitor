@@ -1,0 +1,75 @@
+name: Update ETF Data
+
+on:
+  schedule:
+    # Run at 7:30 AM ET (11:30 UTC) on weekdays — before US market open
+    - cron: '30 11 * * 1-5'
+    # Also run at 5:00 PM ET (21:00 UTC) on weekdays — after market close
+    - cron: '0 21 * * 1-5'
+  workflow_dispatch:  # allow manual trigger from GitHub UI
+
+jobs:
+  update-aum:
+    name: Refresh AUM & Prices
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:  ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_KEY:           ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: etf-monitor/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: etf-monitor
+
+      - name: Fetch latest AUM from Yahoo Finance and upsert to Supabase
+        run: node scripts/update-aum.mjs
+        working-directory: etf-monitor
+
+  update-holdings:
+    name: Refresh NPORT Holdings
+    runs-on: ubuntu-latest
+    # Run once per week on Monday morning — NPORT-P is monthly
+    if: ${{ github.event.schedule == '30 11 * * 1-5' && startsWith(github.event.schedule, '30 11') }}
+    env:
+      NEXT_PUBLIC_SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:  ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_KEY:           ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: etf-monitor/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: etf-monitor
+
+      - name: Fetch top holdings from SEC EDGAR NPORT-P
+        run: node scripts/update-holdings.mjs
+        working-directory: etf-monitor
+
+  revalidate-cache:
+    name: Revalidate Vercel Cache
+    runs-on: ubuntu-latest
+    needs: [update-aum]
+    if: ${{ vars.VERCEL_REVALIDATE_TOKEN != '' }}
+    steps:
+      - name: Trigger Next.js on-demand revalidation
+        run: |
+          curl -X POST "${{ vars.VERCEL_APP_URL }}/api/revalidate?secret=${{ secrets.VERCEL_REVALIDATE_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --fail --silent --show-error
+        continue-on-error: true
