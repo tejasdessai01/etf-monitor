@@ -129,19 +129,30 @@ async function fetchEdgarTickers() {
 
 // ── 3. Validate ETF status via Yahoo Finance ─────────────────────────────────
 
+const YAHOO_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Origin': 'https://finance.yahoo.com',
+  'Referer': 'https://finance.yahoo.com/',
+};
+
 async function fetchYahooChunk(tickers) {
   const symbols = tickers.map(t => t.ticker).join(',');
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}` +
-    `&fields=quoteType,shortName,longName,marketCap,regularMarketPrice,regularMarketChangePercent,netExpenseRatio,category,fullExchangeName,exchange`;
-  try {
-    const res = await fetch(url, { headers: { 'User-Agent': YAHOO_UA } });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return json?.quoteResponse?.result ?? [];
-  } catch (e) {
-    console.warn(`[import] Yahoo chunk failed: ${e.message}`);
-    return [];
+  const fields = 'quoteType,shortName,longName,marketCap,regularMarketPrice,regularMarketChangePercent,netExpenseRatio,category,fullExchangeName,exchange';
+  for (const host of ['query2', 'query1']) {
+    const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`;
+    try {
+      const res = await fetch(url, { headers: YAHOO_HEADERS });
+      if (!res.ok) continue;
+      const json = await res.json();
+      const results = json?.quoteResponse?.result ?? [];
+      if (results.length > 0) return results;
+    } catch (e) {
+      console.warn(`[import] Yahoo ${host} chunk failed: ${e.message}`);
+    }
   }
+  return [];
 }
 
 // ── 4. Main ──────────────────────────────────────────────────────────────────

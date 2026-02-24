@@ -48,22 +48,30 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+const YAHOO_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Origin': 'https://finance.yahoo.com',
+  'Referer': 'https://finance.yahoo.com/',
+};
+
 async function fetchYahooChunk(tickers) {
   const symbols = tickers.join(',');
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}` +
-    `&fields=regularMarketPrice,regularMarketChangePercent,marketCap,shortName`;
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ETFMonitor/1.0)' },
-    });
-    if (!res.ok) return {};
-    const json = await res.json();
-    const quotes = json?.quoteResponse?.result ?? [];
-    return Object.fromEntries(quotes.map(q => [q.symbol, q]));
-  } catch (e) {
-    console.warn(`Yahoo Finance fetch failed for ${tickers.join(',')}: ${e.message}`);
-    return {};
+  const fields = 'regularMarketPrice,regularMarketChangePercent,marketCap,shortName';
+  for (const host of ['query2', 'query1']) {
+    const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`;
+    try {
+      const res = await fetch(url, { headers: YAHOO_HEADERS });
+      if (!res.ok) continue;
+      const json = await res.json();
+      const quotes = json?.quoteResponse?.result ?? [];
+      if (quotes.length > 0) return Object.fromEntries(quotes.map(q => [q.symbol, q]));
+    } catch (e) {
+      console.warn(`Yahoo Finance ${host} fetch failed for ${tickers.join(',')}: ${e.message}`);
+    }
   }
+  return {};
 }
 
 async function main() {

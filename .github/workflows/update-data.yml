@@ -6,14 +6,23 @@ on:
     - cron: '30 11 * * 1-5'
     # Also run at 5:00 PM ET (21:00 UTC) on weekdays — after market close
     - cron: '0 21 * * 1-5'
-  workflow_dispatch:  # allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run (import-etfs or update-aum)'
+        required: false
+        default: 'import-etfs'
+        type: choice
+        options:
+          - import-etfs
+          - update-aum
 
 jobs:
   import-all-etfs:
     name: Import Full ETF Universe (~3400 ETFs)
     runs-on: ubuntu-latest
-    # Only runs when manually triggered — not on schedule
-    if: github.event_name == 'workflow_dispatch'
+    # Only runs when manually triggered with job=import-etfs (default)
+    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'import-etfs' || github.event.inputs.job == '')
     env:
       NEXT_PUBLIC_SUPABASE_URL:  ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY:      ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -36,8 +45,8 @@ jobs:
   update-aum:
     name: Refresh AUM & Prices
     runs-on: ubuntu-latest
-    # Only run on schedule — not when manually triggering the import
-    if: github.event_name == 'schedule'
+    # Run on schedule or manual dispatch (when import-all-etfs is not requested)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'update-aum')
     env:
       NEXT_PUBLIC_SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY:  ${{ secrets.SUPABASE_ANON_KEY }}
