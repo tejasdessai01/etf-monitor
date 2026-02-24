@@ -25,15 +25,13 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: etf-monitor/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: etf-monitor
 
       - name: Import all US ETFs from SEC EDGAR + Yahoo Finance
         run: node scripts/import-all-etfs.mjs
-        working-directory: etf-monitor
 
   update-aum:
     name: Refresh AUM & Prices
@@ -52,15 +50,13 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: etf-monitor/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: etf-monitor
 
       - name: Fetch latest AUM from Yahoo Finance and upsert to Supabase
         run: node scripts/update-aum.mjs
-        working-directory: etf-monitor
 
   update-holdings:
     name: Refresh NPORT Holdings
@@ -79,15 +75,13 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: etf-monitor/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: etf-monitor
 
       - name: Fetch top holdings from SEC EDGAR NPORT-P
         run: node scripts/update-holdings.mjs
-        working-directory: etf-monitor
 
   revalidate-cache:
     name: Revalidate Vercel Cache
