@@ -153,17 +153,25 @@ async function fetchEdgarTickers() {
 
   const [jsonEx, jsonTitles] = await Promise.all([resEx.json(), resTitles.json()]);
 
-  // Build CIK → title map from company_tickers.json (object-map format)
-  const titleByCik = new Map();
+  // Build ticker → title map from company_tickers.json (join by ticker, not CIK,
+  // to avoid CIK format mismatches between the two files).
+  const titleByTicker = new Map();
   if (Array.isArray(jsonTitles.fields) && Array.isArray(jsonTitles.data)) {
-    const fi = { cik: jsonTitles.fields.indexOf('cik_str'), title: jsonTitles.fields.indexOf('title') };
-    for (const row of jsonTitles.data) titleByCik.set(String(row[fi.cik]), row[fi.title] ?? '');
+    const fi = { ticker: jsonTitles.fields.indexOf('ticker'), title: jsonTitles.fields.indexOf('title') };
+    console.log(`[import] company_tickers.json fields: ${JSON.stringify(jsonTitles.fields)}`);
+    for (const row of jsonTitles.data) {
+      const t = row[fi.ticker]; const ttl = row[fi.title];
+      if (t) titleByTicker.set(String(t).toUpperCase(), ttl ?? '');
+    }
   } else {
     for (const entry of Object.values(jsonTitles)) {
-      if (entry.cik_str != null) titleByCik.set(String(entry.cik_str), entry.title ?? '');
+      if (entry.ticker) titleByTicker.set(String(entry.ticker).toUpperCase(), entry.title ?? '');
     }
   }
-  console.log(`[import] Loaded ${titleByCik.size} company titles`);
+  console.log(`[import] Loaded ${titleByTicker.size} company titles`);
+  // Debug: show a few entries
+  const titleSample = [...titleByTicker.entries()].slice(0, 3).map(([k,v]) => `${k}:"${v}"`).join(' | ');
+  console.log(`[import] Title map sample: ${titleSample}`);
 
   // Parse exchange list (columnar format)
   const VALID_EXCHANGES = new Set(['Nasdaq', 'NYSE', 'NYSE MKT', 'NYSE Arca', 'CBOE']);
@@ -173,17 +181,16 @@ async function fetchEdgarTickers() {
     const fi = { ticker: jsonEx.fields.indexOf('ticker'), cik: jsonEx.fields.indexOf('cik_str'), exchange: jsonEx.fields.indexOf('exchange') };
     for (const row of jsonEx.data) {
       const exchange = row[fi.exchange];
-      const ticker   = row[fi.ticker];
-      const cikStr   = String(row[fi.cik]);
+      const ticker   = String(row[fi.ticker] ?? '').toUpperCase();
       if (VALID_EXCHANGES.has(exchange) && ticker) {
-        tickers.push({ ticker: String(ticker).toUpperCase(), cik: cikStr.padStart(10, '0'), exchange, title: titleByCik.get(cikStr) ?? '' });
+        tickers.push({ ticker, cik: String(row[fi.cik]).padStart(10, '0'), exchange, title: titleByTicker.get(ticker) ?? '' });
       }
     }
   } else {
     for (const entry of Object.values(jsonEx)) {
       if (VALID_EXCHANGES.has(entry.exchange) && entry.ticker) {
-        const cikStr = String(entry.cik_str);
-        tickers.push({ ticker: entry.ticker.toUpperCase(), cik: cikStr.padStart(10, '0'), exchange: entry.exchange, title: titleByCik.get(cikStr) ?? '' });
+        const ticker = entry.ticker.toUpperCase();
+        tickers.push({ ticker, cik: String(entry.cik_str).padStart(10, '0'), exchange: entry.exchange, title: titleByTicker.get(ticker) ?? '' });
       }
     }
   }
