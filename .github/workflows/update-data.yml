@@ -38,6 +38,8 @@ jobs:
   update-aum:
     name: Refresh AUM & Prices
     runs-on: ubuntu-latest
+    # Only run on schedule — not when manually triggering the import
+    if: github.event_name == 'schedule'
     env:
       NEXT_PUBLIC_SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY:  ${{ secrets.SUPABASE_ANON_KEY }}
@@ -63,8 +65,8 @@ jobs:
   update-holdings:
     name: Refresh NPORT Holdings
     runs-on: ubuntu-latest
-    # Run once per week on Monday morning — NPORT-P is monthly
-    if: ${{ github.event.schedule == '30 11 * * 1-5' && startsWith(github.event.schedule, '30 11') }}
+    # Only on schedule, and only on the morning run (not the evening one)
+    if: github.event_name == 'schedule' && github.event.schedule == '30 11 * * 1-5'
     env:
       NEXT_PUBLIC_SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY:  ${{ secrets.SUPABASE_ANON_KEY }}
@@ -91,7 +93,7 @@ jobs:
     name: Revalidate Vercel Cache
     runs-on: ubuntu-latest
     needs: [update-aum]
-    if: ${{ vars.VERCEL_REVALIDATE_TOKEN != '' }}
+    if: github.event_name == 'schedule' && vars.VERCEL_REVALIDATE_TOKEN != ''
     steps:
       - name: Trigger Next.js on-demand revalidation
         run: |
