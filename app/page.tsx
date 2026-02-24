@@ -10,55 +10,36 @@ import IssuerSnapshot from '@/components/IssuerSnapshot';
 import SocialPanel from '@/components/SocialPanel';
 import FlowsPanel from '@/components/FlowsPanel';
 import { SEED_ETFS } from '@/lib/etf-data';
-import { fmtAum } from '@/lib/format';
 
-// Compute stats server-side from seed data
 const totalAUM = SEED_ETFS.reduce((sum, e) => sum + e.aum, 0);
-const TOTAL_US_ETFS = 3400; // approximate count per SEC/ICI data
 
 export default function DashboardPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       <Header />
-      <StatsBar totalETFs={TOTAL_US_ETFS} totalAUM={totalAUM} />
+      <StatsBar totalAUM={totalAUM} />
 
-      {/* ── Main grid ─────────────────────────────────────────────────────── */}
-      <main
-        id="overview"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 340px',
-          gridTemplateRows: 'auto auto auto',
-          gap: '12px',
-          padding: '12px',
-          maxWidth: '1600px',
-          margin: '0 auto',
-        }}
-      >
-        {/* ── Row 1: ETF Table (left) + Right column ──────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateRows: '560px', gap: '12px' }}>
+      <main id="overview" className="dashboard-grid">
+
+        {/* ── Row 1 left: ETF Table ─────────────────────────────────────── */}
+        <div style={{ height: '560px' }}>
           <Suspense fallback={<PanelSkeleton height={560} />}>
             <ETFTable />
           </Suspense>
         </div>
 
-        {/* Right column — stacked panels */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ height: '260px' }}>
-            <Suspense fallback={<PanelSkeleton height={260} />}>
-              <TopMovers />
-            </Suspense>
-          </div>
-          <div style={{ height: '288px' }}>
-            <Suspense fallback={<PanelSkeleton height={288} />}>
-              <FilingsPanel />
-            </Suspense>
-          </div>
+        {/* Row 1 right: Top Movers + Filings */}
+        <div className="dashboard-right-col">
+          <Suspense fallback={<PanelSkeleton height={260} />}>
+            <TopMovers />
+          </Suspense>
+          <Suspense fallback={<PanelSkeleton height={288} />}>
+            <FilingsPanel />
+          </Suspense>
         </div>
 
-        {/* ── Row 2: bottom panels ────────────────────────────────────────── */}
-        {/* Bottom left: New Launches + Issuer split */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', height: '360px' }}>
+        {/* ── Row 2 left: New Launches + Issuer ────────────────────────── */}
+        <div className="dashboard-bottom-left">
           <Suspense fallback={<PanelSkeleton height={360} />}>
             <NewLaunches />
           </Suspense>
@@ -67,8 +48,8 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* Bottom right: News + Social */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '360px' }}>
+        {/* Row 2 right: News + Social */}
+        <div className="dashboard-bottom-right">
           <div style={{ flex: '1 1 0', minHeight: 0 }}>
             <Suspense fallback={<PanelSkeleton height={260} />}>
               <NewsPanel />
@@ -79,15 +60,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Row 3: Fund Flows (full width) ──────────────────────────────── */}
-        <div style={{ height: '340px', gridColumn: '1 / -1' }}>
+        {/* ── Row 3: Fund Flows full width ─────────────────────────────── */}
+        <div className="dashboard-flows" style={{ gridColumn: '1 / -1', height: '340px' }}>
           <Suspense fallback={<PanelSkeleton height={340} />}>
             <FlowsPanel />
           </Suspense>
         </div>
+
       </main>
 
-      {/* Footer */}
       <footer style={{
         padding: '16px 20px',
         borderTop: '1px solid var(--border)',
@@ -95,23 +76,20 @@ export default function DashboardPage() {
         justifyContent: 'space-between',
         alignItems: 'center',
         marginTop: '12px',
+        flexWrap: 'wrap',
+        gap: '8px',
       }}>
         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-          ETF Monitor · Data from SEC EDGAR &amp; Yahoo Finance · Not financial advice
+          ETF Monitor v1 · SEC EDGAR &amp; Yahoo Finance · Not financial advice
         </span>
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           {[
             { label: 'SEC EDGAR', url: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=N-1A&dateb=&owner=include&count=40' },
-            { label: 'ICI Data', url: 'https://www.ici.org/research/stats' },
-            { label: 'ETF.com', url: 'https://www.etf.com' },
+            { label: 'ICI Data',  url: 'https://www.ici.org/research/stats' },
+            { label: 'ETF.com',   url: 'https://www.etf.com' },
           ].map(({ label, url }) => (
-            <a
-              key={label}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'none' }}
-            >
+            <a key={label} href={url} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'none' }}>
               {label} ↗
             </a>
           ))}
@@ -122,7 +100,5 @@ export default function DashboardPage() {
 }
 
 function PanelSkeleton({ height }: { height: number }) {
-  return (
-    <div className="panel skeleton" style={{ height, borderRadius: '8px' }} />
-  );
+  return <div className="panel skeleton" style={{ height, borderRadius: '8px' }} />;
 }

@@ -43,6 +43,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .positive { color: var(--green); }
@@ -83,4 +85,123 @@ body {
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 4px;
+}
+
+/* ── Responsive layout ───────────────────────────────────────────────────── */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 12px;
+  padding: 12px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.dashboard-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard-bottom-left {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  height: 360px;
+}
+
+.dashboard-bottom-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 360px;
+}
+
+/* ── Tablet (≤1100px): collapse right column below ───────────────────────── */
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-right-col {
+    flex-direction: row;
+    height: 260px;
+  }
+
+  .dashboard-right-col > * {
+    flex: 1;
+  }
+}
+
+/* ── Mobile (≤768px) ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .dashboard-right-col {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .dashboard-right-col > * {
+    flex: unset;
+    height: 280px;
+  }
+
+  .dashboard-bottom-left {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .dashboard-bottom-left > * {
+    height: 300px;
+  }
+
+  .dashboard-bottom-right {
+    height: auto;
+  }
+
+  .dashboard-bottom-right > * {
+    height: 280px;
+  }
+
+  .dashboard-flows {
+    height: 300px !important;
+  }
+}
+
+/* ── ETF Table: hide columns on small screens ────────────────────────────── */
+@media (max-width: 768px) {
+  .col-issuer,
+  .col-expense,
+  .col-holdings { display: none !important; }
+}
+
+@media (max-width: 540px) {
+  .col-price { display: none !important; }
+}
+
+/* ── Header: mobile ──────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header-nav   { display: none !important; }
+  .header-edgar { display: none !important; }
+}
+
+/* ── Stats bar: scroll on mobile ─────────────────────────────────────────── */
+.stats-bar-row {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .stats-bar-row {
+    padding: 0 12px;
+  }
 }

@@ -67,9 +67,10 @@ export default function ETFTable() {
     return <span style={{ fontSize: '10px', opacity: 0.8 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
   }
 
-  function ColHeader({ label, k, style }: { label: string; k: SortKey; style?: React.CSSProperties }) {
+  function ColHeader({ label, k, style, className }: { label: string; k: SortKey; style?: React.CSSProperties; className?: string }) {
     return (
       <th
+        className={className}
         onClick={() => handleSort(k)}
         style={{
           padding: '8px 12px',
@@ -160,12 +161,12 @@ export default function ETFTable() {
                   Fund <SortIcon k="ticker" />
                 </span>
               </th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Issuer</th>
+              <th className="col-issuer" style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Issuer</th>
               <ColHeader label="AUM"      k="aum" />
-              <ColHeader label="Price"    k="aum" style={{ color: 'var(--text-muted)' }} />
+              <ColHeader label="Price"    k="aum" style={{ color: 'var(--text-muted)' }} className="col-price" />
               <ColHeader label="1D Chg"   k="changePct" />
-              <ColHeader label="Exp Ratio" k="expenseRatio" />
-              <th style={{ padding: '8px 8px', width: '32px' }} />
+              <ColHeader label="Exp Ratio" k="expenseRatio" className="col-expense" />
+              <th className="col-holdings" style={{ padding: '8px 8px', width: '32px' }} />
             </tr>
           </thead>
           <tbody>
@@ -208,7 +209,7 @@ export default function ETFTable() {
                     </td>
 
                     {/* Issuer + category */}
-                    <td style={{ padding: '9px 12px' }}>
+                    <td className="col-issuer" style={{ padding: '9px 12px' }}>
                       <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{etf.issuer}</div>
                       <span style={{
                         fontSize: '9px',
@@ -228,7 +229,7 @@ export default function ETFTable() {
                     </td>
 
                     {/* Price */}
-                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                    <td className="col-price" style={{ padding: '9px 12px', textAlign: 'right', fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                       {fmtPrice(etf.price)}
                     </td>
 
@@ -240,12 +241,12 @@ export default function ETFTable() {
                     </td>
 
                     {/* Expense ratio */}
-                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    <td className="col-expense" style={{ padding: '9px 12px', textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)' }}>
                       {fmtBps(etf.expenseRatio)}
                     </td>
 
                     {/* Holdings button */}
-                    <td style={{ padding: '9px 8px', textAlign: 'center', width: '32px' }}>
+                    <td className="col-holdings" style={{ padding: '9px 8px', textAlign: 'center', width: '32px' }}>
                       <button
                         title="View holdings"
                         onClick={e => { e.stopPropagation(); setSelected(etf); }}

@@ -10,18 +10,15 @@ interface TickerItem {
   changePct?: number;
 }
 
-interface StatsBarProps {
-  totalETFs: number;
-  totalAUM: number;
-}
-
-export default function StatsBar({ totalETFs, totalAUM }: StatsBarProps) {
+export default function StatsBar({ totalAUM }: { totalAUM: number }) {
   const [tickers, setTickers] = useState<TickerItem[]>([]);
+  const [liveTotal, setLiveTotal] = useState<number | null>(null);
 
   useEffect(() => {
     fetch('/api/etfs')
       .then((r) => r.json())
       .then((json) => {
+        if (json.total) setLiveTotal(json.total as number);
         const items: TickerItem[] = (json.data as ETF[])
           .filter((e) => e.price !== undefined)
           .slice(0, 20)
@@ -41,20 +38,12 @@ export default function StatsBar({ totalETFs, totalAUM }: StatsBarProps) {
       }}
     >
       {/* Stats row */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 0,
-          borderBottom: '1px solid var(--border)',
-          padding: '0 20px',
-        }}
-      >
+      <div className="stats-bar-row">
         {[
-          { label: 'Total US ETFs', value: totalETFs.toLocaleString() + '+' },
-          { label: 'Total AUM',      value: fmtAum(totalAUM) },
-          { label: 'Tracked Funds',  value: '70+' },
-          { label: 'Data Source',    value: 'SEC EDGAR + Yahoo Finance' },
-          { label: 'Updated',        value: 'Every 5 min' },
+          { label: 'US ETF Universe', value: liveTotal ? liveTotal.toLocaleString() : '3,400+' },
+          { label: 'Total AUM',       value: fmtAum(totalAUM) },
+          { label: 'Data Sources',    value: 'SEC EDGAR + Yahoo Finance' },
+          { label: 'Price Refresh',   value: 'Every 5 min' },
         ].map(({ label, value }) => (
           <div
             key={label}
