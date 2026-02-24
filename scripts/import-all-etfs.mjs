@@ -145,14 +145,28 @@ async function fetchEdgarTickers() {
   if (!res.ok) throw new Error(`EDGAR HTTP ${res.status}`);
   const json = await res.json();
 
-  // Filter to major US exchanges only (skip OTC)
   const VALID_EXCHANGES = new Set(['Nasdaq', 'NYSE', 'NYSE MKT', 'NYSE Arca', 'CBOE']);
   const tickers = [];
-  for (const entry of Object.values(json)) {
-    if (VALID_EXCHANGES.has(entry.exchange) && entry.ticker) {
-      tickers.push({ ticker: entry.ticker.toUpperCase(), cik: String(entry.cik_str).padStart(10, '0'), exchange: entry.exchange });
+
+  // EDGAR switched to a columnar format: { fields: [...], data: [[...], ...] }
+  // Fall back to the legacy object-map format if fields/data are absent.
+  if (Array.isArray(json.fields) && Array.isArray(json.data)) {
+    const fi = { ticker: json.fields.indexOf('ticker'), cik: json.fields.indexOf('cik_str'), exchange: json.fields.indexOf('exchange') };
+    for (const row of json.data) {
+      const exchange = row[fi.exchange];
+      const ticker   = row[fi.ticker];
+      if (VALID_EXCHANGES.has(exchange) && ticker) {
+        tickers.push({ ticker: String(ticker).toUpperCase(), cik: String(row[fi.cik]).padStart(10, '0'), exchange });
+      }
+    }
+  } else {
+    for (const entry of Object.values(json)) {
+      if (VALID_EXCHANGES.has(entry.exchange) && entry.ticker) {
+        tickers.push({ ticker: entry.ticker.toUpperCase(), cik: String(entry.cik_str).padStart(10, '0'), exchange: entry.exchange });
+      }
     }
   }
+
   console.log(`[import] ${tickers.length} exchange-listed tickers found`);
   return tickers;
 }
