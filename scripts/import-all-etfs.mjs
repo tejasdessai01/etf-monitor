@@ -27,12 +27,42 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const EDGAR_UA  = 'ETFMonitor contact@etf-monitor.app';
-const YAHOO_UA  = 'Mozilla/5.0 (compatible; ETFMonitor/1.0)';
-const CHUNK     = 20;   // Yahoo Finance max symbols per request
-const DELAY_MS  = 350;  // polite rate limit
+const EDGAR_UA = 'ETFMonitor contact@etf-monitor.app';
+const YAHOO_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const CHUNK    = 10;    // smaller batches → less likely to trigger rate limits
+const DELAY_MS = 800;   // ms between Yahoo Finance chunks
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Yahoo Finance requires crumb + session cookie since ~2023.
+let _session = null;
+
+async function getYahooSession() {
+  if (_session) return _session;
+  try {
+    const r1 = await fetch('https://finance.yahoo.com/', {
+      headers: { 'User-Agent': YAHOO_UA, 'Accept': 'text/html,application/xhtml+xml' },
+    });
+    const setCookies = typeof r1.headers.getSetCookie === 'function'
+      ? r1.headers.getSetCookie()
+      : [r1.headers.get('set-cookie') ?? ''];
+    const cookies = setCookies.map(c => c.split(';')[0]).filter(Boolean).join('; ');
+
+    const r2 = await fetch('https://query1.finance.yahoo.com/v1/test/getcrumb', {
+      headers: { 'User-Agent': YAHOO_UA, 'Cookie': cookies },
+    });
+    if (r2.ok) {
+      const crumb = (await r2.text()).trim();
+      _session = { crumb, cookies };
+      console.log(`[import] Yahoo session ready (crumb=${crumb.slice(0, 6)}…)`);
+    } else {
+      console.warn(`[import] getcrumb returned ${r2.status}`);
+    }
+  } catch (e) {
+    console.warn('[import] Failed to get Yahoo crumb:', e.message);
+  }
+  return _session;
+}
 
 // ── 1. Yahoo Finance category → our taxonomy ────────────────────────────────
 
@@ -129,27 +159,43 @@ async function fetchEdgarTickers() {
 
 // ── 3. Validate ETF status via Yahoo Finance ─────────────────────────────────
 
-const YAHOO_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'application/json, */*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Origin': 'https://finance.yahoo.com',
-  'Referer': 'https://finance.yahoo.com/',
-};
-
 async function fetchYahooChunk(tickers) {
+  let session = await getYahooSession();
   const symbols = tickers.map(t => t.ticker).join(',');
-  const fields = 'quoteType,shortName,longName,marketCap,regularMarketPrice,regularMarketChangePercent,netExpenseRatio,category,fullExchangeName,exchange';
+  const fields  = 'quoteType,shortName,longName,marketCap,regularMarketPrice,regularMarketChangePercent,netExpenseRatio,category,fullExchangeName,exchange';
+
   for (const host of ['query2', 'query1']) {
-    const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`;
-    try {
-      const res = await fetch(url, { headers: YAHOO_HEADERS });
-      if (!res.ok) continue;
-      const json = await res.json();
-      const results = json?.quoteResponse?.result ?? [];
-      if (results.length > 0) return results;
-    } catch (e) {
-      console.warn(`[import] Yahoo ${host} chunk failed: ${e.message}`);
+    let url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`;
+    if (session?.crumb) url += `&crumb=${encodeURIComponent(session.crumb)}`;
+
+    const headers = {
+      'User-Agent': YAHOO_UA,
+      'Accept': 'application/json, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Origin': 'https://finance.yahoo.com',
+      'Referer': 'https://finance.yahoo.com/',
+    };
+    if (session?.cookies) headers['Cookie'] = session.cookies;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(url, { headers });
+        if (res.status === 429) {
+          const wait = (attempt + 1) * 30000;
+          console.warn(`[import] Rate limited (${host}), waiting ${wait / 1000}s…`);
+          await sleep(wait);
+          continue;
+        }
+        if (!res.ok) break;
+        const json = await res.json();
+        const results = json?.quoteResponse?.result ?? [];
+        if (results.length > 0) return results;
+        // 200 but empty — crumb may be stale; refresh and retry
+        if (attempt === 0 && session) { _session = null; session = await getYahooSession(); }
+      } catch (e) {
+        console.warn(`[import] Yahoo ${host} chunk failed (attempt ${attempt + 1}): ${e.message}`);
+        if (attempt < 2) await sleep(3000);
+      }
     }
   }
   return [];

@@ -41,34 +41,83 @@ const TICKERS = [
   'ESGU','ESGV',
 ];
 
-const CHUNK = 20;
-const DELAY = 300; // ms between Yahoo Finance requests
+const CHUNK = 10;  // smaller batches → less likely to trigger rate limits
+const DELAY = 600; // ms between requests
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+const YAHOO_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+// Yahoo Finance requires a crumb + session cookie since ~2023.
+// Without it the API returns HTTP 200 with an empty quoteResponse.result.
+let _session = null; // { crumb, cookies }
+
+async function getYahooSession() {
+  if (_session) return _session;
+  try {
+    // Step 1: load the homepage to collect session cookies
+    const r1 = await fetch('https://finance.yahoo.com/', {
+      headers: { 'User-Agent': YAHOO_UA, 'Accept': 'text/html,application/xhtml+xml' },
+    });
+    const setCookies = typeof r1.headers.getSetCookie === 'function'
+      ? r1.headers.getSetCookie()
+      : [r1.headers.get('set-cookie') ?? ''];
+    const cookies = setCookies.map(c => c.split(';')[0]).filter(Boolean).join('; ');
+
+    // Step 2: exchange cookies for a crumb
+    const r2 = await fetch('https://query1.finance.yahoo.com/v1/test/getcrumb', {
+      headers: { 'User-Agent': YAHOO_UA, 'Cookie': cookies },
+    });
+    if (r2.ok) {
+      const crumb = (await r2.text()).trim();
+      _session = { crumb, cookies };
+      console.log(`[update-aum] Yahoo session ready (crumb=${crumb.slice(0, 6)}…)`);
+    } else {
+      console.warn(`[update-aum] getcrumb returned ${r2.status}`);
+    }
+  } catch (e) {
+    console.warn('[update-aum] Failed to fetch Yahoo crumb:', e.message);
+  }
+  return _session;
 }
 
-const YAHOO_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'application/json, */*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Origin': 'https://finance.yahoo.com',
-  'Referer': 'https://finance.yahoo.com/',
-};
-
 async function fetchYahooChunk(tickers) {
-  const symbols = tickers.join(',');
-  const fields = 'regularMarketPrice,regularMarketChangePercent,marketCap,shortName';
+  let session = await getYahooSession();
+  const symbols  = tickers.join(',');
+  const fields   = 'regularMarketPrice,regularMarketChangePercent,marketCap,shortName';
+
   for (const host of ['query2', 'query1']) {
-    const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`;
-    try {
-      const res = await fetch(url, { headers: YAHOO_HEADERS });
-      if (!res.ok) continue;
-      const json = await res.json();
-      const quotes = json?.quoteResponse?.result ?? [];
-      if (quotes.length > 0) return Object.fromEntries(quotes.map(q => [q.symbol, q]));
-    } catch (e) {
-      console.warn(`Yahoo Finance ${host} fetch failed for ${tickers.join(',')}: ${e.message}`);
+    let url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`;
+    if (session?.crumb) url += `&crumb=${encodeURIComponent(session.crumb)}`;
+
+    const headers = {
+      'User-Agent': YAHOO_UA,
+      'Accept': 'application/json, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Origin': 'https://finance.yahoo.com',
+      'Referer': 'https://finance.yahoo.com/',
+    };
+    if (session?.cookies) headers['Cookie'] = session.cookies;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(url, { headers });
+        if (res.status === 429) {
+          const wait = (attempt + 1) * 20000;
+          console.warn(`[update-aum] Rate limited (${host}), waiting ${wait / 1000}s…`);
+          await sleep(wait);
+          continue;
+        }
+        if (!res.ok) break; // try next host
+        const json  = await res.json();
+        const quotes = json?.quoteResponse?.result ?? [];
+        if (quotes.length > 0) return Object.fromEntries(quotes.map(q => [q.symbol, q]));
+        // got 200 but empty result — crumb may be stale; reset and retry once
+        if (attempt === 0 && session) { _session = null; session = await getYahooSession(); }
+      } catch (e) {
+        console.warn(`[update-aum] ${host} chunk failed (attempt ${attempt + 1}): ${e.message}`);
+        if (attempt < 2) await sleep(3000);
+      }
     }
   }
   return {};
