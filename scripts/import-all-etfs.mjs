@@ -138,43 +138,58 @@ function mapExchange(code = '', fullName = '') {
 // ── 2. Fetch all exchange-listed tickers from SEC EDGAR ──────────────────────
 
 async function fetchEdgarTickers() {
-  console.log('[import] Fetching SEC EDGAR company ticker list...');
-  const res = await fetch('https://www.sec.gov/files/company_tickers_exchange.json', {
-    headers: { 'User-Agent': EDGAR_UA },
-  });
-  if (!res.ok) throw new Error(`EDGAR HTTP ${res.status}`);
-  const json = await res.json();
+  console.log('[import] Fetching SEC EDGAR ticker lists…');
 
+  // company_tickers_exchange.json  → ticker + exchange (columnar, no title)
+  // company_tickers.json           → ticker + title (object-map, no exchange)
+  // We fetch both and join by CIK to get ticker + exchange + title.
+
+  const [resEx, resTitles] = await Promise.all([
+    fetch('https://www.sec.gov/files/company_tickers_exchange.json', { headers: { 'User-Agent': EDGAR_UA } }),
+    fetch('https://www.sec.gov/files/company_tickers.json',          { headers: { 'User-Agent': EDGAR_UA } }),
+  ]);
+  if (!resEx.ok)     throw new Error(`EDGAR exchange list HTTP ${resEx.status}`);
+  if (!resTitles.ok) throw new Error(`EDGAR titles list HTTP ${resTitles.status}`);
+
+  const [jsonEx, jsonTitles] = await Promise.all([resEx.json(), resTitles.json()]);
+
+  // Build CIK → title map from company_tickers.json (object-map format)
+  const titleByCik = new Map();
+  if (Array.isArray(jsonTitles.fields) && Array.isArray(jsonTitles.data)) {
+    const fi = { cik: jsonTitles.fields.indexOf('cik_str'), title: jsonTitles.fields.indexOf('title') };
+    for (const row of jsonTitles.data) titleByCik.set(String(row[fi.cik]), row[fi.title] ?? '');
+  } else {
+    for (const entry of Object.values(jsonTitles)) {
+      if (entry.cik_str != null) titleByCik.set(String(entry.cik_str), entry.title ?? '');
+    }
+  }
+  console.log(`[import] Loaded ${titleByCik.size} company titles`);
+
+  // Parse exchange list (columnar format)
   const VALID_EXCHANGES = new Set(['Nasdaq', 'NYSE', 'NYSE MKT', 'NYSE Arca', 'CBOE']);
   const tickers = [];
 
-  // EDGAR switched to a columnar format: { fields: [...], data: [[...], ...] }
-  // Fall back to the legacy object-map format if fields/data are absent.
-  if (Array.isArray(json.fields) && Array.isArray(json.data)) {
-    const fi = {
-      ticker:   json.fields.indexOf('ticker'),
-      cik:      json.fields.indexOf('cik_str'),
-      exchange: json.fields.indexOf('exchange'),
-      title:    json.fields.indexOf('title'),
-    };
-    for (const row of json.data) {
+  if (Array.isArray(jsonEx.fields) && Array.isArray(jsonEx.data)) {
+    const fi = { ticker: jsonEx.fields.indexOf('ticker'), cik: jsonEx.fields.indexOf('cik_str'), exchange: jsonEx.fields.indexOf('exchange') };
+    for (const row of jsonEx.data) {
       const exchange = row[fi.exchange];
       const ticker   = row[fi.ticker];
+      const cikStr   = String(row[fi.cik]);
       if (VALID_EXCHANGES.has(exchange) && ticker) {
-        tickers.push({ ticker: String(ticker).toUpperCase(), cik: String(row[fi.cik]).padStart(10, '0'), exchange, title: row[fi.title] ?? '' });
+        tickers.push({ ticker: String(ticker).toUpperCase(), cik: cikStr.padStart(10, '0'), exchange, title: titleByCik.get(cikStr) ?? '' });
       }
     }
   } else {
-    for (const entry of Object.values(json)) {
+    for (const entry of Object.values(jsonEx)) {
       if (VALID_EXCHANGES.has(entry.exchange) && entry.ticker) {
-        tickers.push({ ticker: entry.ticker.toUpperCase(), cik: String(entry.cik_str).padStart(10, '0'), exchange: entry.exchange, title: entry.title ?? '' });
+        const cikStr = String(entry.cik_str);
+        tickers.push({ ticker: entry.ticker.toUpperCase(), cik: cikStr.padStart(10, '0'), exchange: entry.exchange, title: titleByCik.get(cikStr) ?? '' });
       }
     }
   }
 
   console.log(`[import] ${tickers.length} exchange-listed tickers found`);
-  // Debug: show a sample of titles so we can tune the ETF filter
-  const sample = tickers.slice(0, 5).map(t => `${t.ticker}: "${t.title}"`).join(', ');
+  const sample = tickers.slice(0, 5).map(t => `${t.ticker}: "${t.title}"`).join(' | ');
   console.log(`[import] Title sample: ${sample}`);
   return tickers;
 }
@@ -234,10 +249,14 @@ async function main() {
   // Step 2: pre-filter to ETF candidates using the EDGAR title field.
   // This reduces Yahoo Finance calls from ~750 chunks to ~150,
   // dramatically lowering the chance of hitting rate limits.
-  const ETF_TITLE_KEYWORDS = ['etf', 'exchange-traded fund', 'exchange traded fund', 'etp', 'exchange-traded product'];
+  // Known ETF fund families + generic ETF keywords.
+  // "trust" catches GLD (SPDR Gold Trust), IAU, SLV, QQQ (Invesco QQQ Trust), etc.
+  // Mutual funds are rarely exchange-listed, so trust/fund false-positives are minimal.
+  const ETF_KEYWORDS = ['etf', 'exchange-traded', 'exchange traded', 'etp', 'ishares', 'spdr', 'proshares', 'wisdomtree', 'direxion', 'invesco', 'powershares', 'graniteshares', 'vaneck', 'ark invest', 'global x'];
   const etfCandidates = allTickers.filter(t => {
     const title = (t.title || '').toLowerCase();
-    return ETF_TITLE_KEYWORDS.some(kw => title.includes(kw));
+    if (!title) return false;
+    return ETF_KEYWORDS.some(kw => title.includes(kw));
   });
   console.log(`[import] Pre-filtered to ${etfCandidates.length} ETF candidates by SEC title`);
 
