@@ -173,6 +173,9 @@ async function fetchEdgarTickers() {
   }
 
   console.log(`[import] ${tickers.length} exchange-listed tickers found`);
+  // Debug: show a sample of titles so we can tune the ETF filter
+  const sample = tickers.slice(0, 5).map(t => `${t.ticker}: "${t.title}"`).join(', ');
+  console.log(`[import] Title sample: ${sample}`);
   return tickers;
 }
 
