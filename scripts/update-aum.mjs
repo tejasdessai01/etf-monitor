@@ -84,7 +84,7 @@ async function getYahooSession() {
 // rate-limited than batch requests from shared cloud IPs.
 async function fetchYahooTicker(ticker) {
   let session = await getYahooSession();
-  const fields = 'regularMarketPrice,regularMarketChangePercent,marketCap';
+  const fields = 'regularMarketPrice,regularMarketChangePercent,marketCap,shortName';
 
   for (const host of ['query2', 'query1']) {
     let url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${ticker}&fields=${fields}`;
@@ -142,7 +142,9 @@ async function main() {
     const price = q.regularMarketPrice ?? null;
 
     if (price) {
-      etfRows.push({ ticker, aum, price, change_pct: q.regularMarketChangePercent ?? null, updated_at: new Date().toISOString() });
+      // Include name so the upsert can INSERT new rows (name is NOT NULL in etfs table).
+      // onConflict:'ticker' means existing rows get their name preserved on conflict.
+      etfRows.push({ ticker, name: q.shortName || ticker, aum, price, change_pct: q.regularMarketChangePercent ?? null, updated_at: new Date().toISOString() });
       if (aum) historyRows.push({ ticker, date: today, aum, price });
     }
     await sleep(DELAY);
