@@ -151,18 +151,23 @@ async function fetchEdgarTickers() {
   // EDGAR switched to a columnar format: { fields: [...], data: [[...], ...] }
   // Fall back to the legacy object-map format if fields/data are absent.
   if (Array.isArray(json.fields) && Array.isArray(json.data)) {
-    const fi = { ticker: json.fields.indexOf('ticker'), cik: json.fields.indexOf('cik_str'), exchange: json.fields.indexOf('exchange') };
+    const fi = {
+      ticker:   json.fields.indexOf('ticker'),
+      cik:      json.fields.indexOf('cik_str'),
+      exchange: json.fields.indexOf('exchange'),
+      title:    json.fields.indexOf('title'),
+    };
     for (const row of json.data) {
       const exchange = row[fi.exchange];
       const ticker   = row[fi.ticker];
       if (VALID_EXCHANGES.has(exchange) && ticker) {
-        tickers.push({ ticker: String(ticker).toUpperCase(), cik: String(row[fi.cik]).padStart(10, '0'), exchange });
+        tickers.push({ ticker: String(ticker).toUpperCase(), cik: String(row[fi.cik]).padStart(10, '0'), exchange, title: row[fi.title] ?? '' });
       }
     }
   } else {
     for (const entry of Object.values(json)) {
       if (VALID_EXCHANGES.has(entry.exchange) && entry.ticker) {
-        tickers.push({ ticker: entry.ticker.toUpperCase(), cik: String(entry.cik_str).padStart(10, '0'), exchange: entry.exchange });
+        tickers.push({ ticker: entry.ticker.toUpperCase(), cik: String(entry.cik_str).padStart(10, '0'), exchange: entry.exchange, title: entry.title ?? '' });
       }
     }
   }
@@ -223,13 +228,23 @@ async function main() {
   // Step 1: get all exchange-listed tickers
   const allTickers = await fetchEdgarTickers();
 
-  // Step 2: batch through Yahoo Finance to find ETFs
+  // Step 2: pre-filter to ETF candidates using the EDGAR title field.
+  // This reduces Yahoo Finance calls from ~750 chunks to ~150,
+  // dramatically lowering the chance of hitting rate limits.
+  const ETF_TITLE_KEYWORDS = ['etf', 'exchange-traded fund', 'exchange traded fund', 'etp', 'exchange-traded product'];
+  const etfCandidates = allTickers.filter(t => {
+    const title = (t.title || '').toLowerCase();
+    return ETF_TITLE_KEYWORDS.some(kw => title.includes(kw));
+  });
+  console.log(`[import] Pre-filtered to ${etfCandidates.length} ETF candidates by SEC title`);
+
+  // Step 3: batch through Yahoo Finance to validate ETF status and get metadata
   const chunks = [];
-  for (let i = 0; i < allTickers.length; i += CHUNK) {
-    chunks.push(allTickers.slice(i, i + CHUNK));
+  for (let i = 0; i < etfCandidates.length; i += CHUNK) {
+    chunks.push(etfCandidates.slice(i, i + CHUNK));
   }
 
-  console.log(`[import] Validating ${chunks.length} chunks via Yahoo Finance...`);
+  console.log(`[import] Validating ${chunks.length} chunks (${etfCandidates.length} tickers) via Yahoo Finance…`);
 
   const etfRows = [];
   let chunkIdx = 0;

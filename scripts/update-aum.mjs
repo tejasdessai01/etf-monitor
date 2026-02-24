@@ -41,8 +41,7 @@ const TICKERS = [
   'ESGU','ESGV',
 ];
 
-const CHUNK = 10;  // smaller batches → less likely to trigger rate limits
-const DELAY = 600; // ms between requests
+const DELAY = 600; // ms between per-ticker requests
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -81,13 +80,14 @@ async function getYahooSession() {
   return _session;
 }
 
-async function fetchYahooChunk(tickers) {
+// Fetch a single ticker — individual requests are far less likely to be
+// rate-limited than batch requests from shared cloud IPs.
+async function fetchYahooTicker(ticker) {
   let session = await getYahooSession();
-  const symbols  = tickers.join(',');
-  const fields   = 'regularMarketPrice,regularMarketChangePercent,marketCap,shortName';
+  const fields = 'regularMarketPrice,regularMarketChangePercent,marketCap';
 
   for (const host of ['query2', 'query1']) {
-    let url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`;
+    let url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${ticker}&fields=${fields}`;
     if (session?.crumb) url += `&crumb=${encodeURIComponent(session.crumb)}`;
 
     const headers = {
@@ -104,56 +104,51 @@ async function fetchYahooChunk(tickers) {
         const res = await fetch(url, { headers });
         if (res.status === 429) {
           const wait = (attempt + 1) * 20000;
-          console.warn(`[update-aum] Rate limited (${host}), waiting ${wait / 1000}s…`);
+          console.warn(`[update-aum] Rate limited (${host}/${ticker}), waiting ${wait / 1000}s…`);
           await sleep(wait);
           continue;
         }
-        if (!res.ok) break; // try next host
+        if (!res.ok) break;
         const json  = await res.json();
-        const quotes = json?.quoteResponse?.result ?? [];
-        if (quotes.length > 0) return Object.fromEntries(quotes.map(q => [q.symbol, q]));
-        // got 200 but empty result — crumb may be stale; reset and retry once
-        if (attempt === 0 && session) { _session = null; session = await getYahooSession(); }
+        const quote = json?.quoteResponse?.result?.[0];
+        if (quote) return quote;
+        // 200 but empty → stale crumb; refresh once and retry
+        if (attempt === 0) { _session = null; session = await getYahooSession(); }
       } catch (e) {
-        console.warn(`[update-aum] ${host} chunk failed (attempt ${attempt + 1}): ${e.message}`);
+        console.warn(`[update-aum] ${host}/${ticker} attempt ${attempt + 1}: ${e.message}`);
         if (attempt < 2) await sleep(3000);
       }
     }
   }
-  return {};
+  return null;
 }
 
 async function main() {
   console.log(`[update-aum] Starting — ${new Date().toISOString()}`);
   const today = new Date().toISOString().split('T')[0];
 
-  // Fetch all quotes in chunks
-  const quoteMap = {};
-  for (let i = 0; i < TICKERS.length; i += CHUNK) {
-    const chunk = TICKERS.slice(i, i + CHUNK);
-    const quotes = await fetchYahooChunk(chunk);
-    Object.assign(quoteMap, quotes);
-    if (i + CHUNK < TICKERS.length) await sleep(DELAY);
-  }
-
-  console.log(`[update-aum] Got ${Object.keys(quoteMap).length} quotes from Yahoo Finance`);
-
-  // Build upsert rows
-  const etfRows = [];
+  // Fetch one ticker at a time — single-ticker requests are far less
+  // rate-limited than batch requests from shared GitHub Actions IPs.
+  const etfRows    = [];
   const historyRows = [];
 
-  for (const ticker of TICKERS) {
-    const q = quoteMap[ticker];
-    if (!q) continue;
+  for (let i = 0; i < TICKERS.length; i++) {
+    const ticker = TICKERS[i];
+    const q = await fetchYahooTicker(ticker);
+    if (i % 10 === 0) console.log(`[update-aum] ${i}/${TICKERS.length} tickers processed`);
+    if (!q) { await sleep(DELAY); continue; }
 
     const aum   = q.marketCap && q.marketCap > 1e8 ? q.marketCap : null;
     const price = q.regularMarketPrice ?? null;
 
-    if (aum) {
+    if (price) {
       etfRows.push({ ticker, aum, price, change_pct: q.regularMarketChangePercent ?? null, updated_at: new Date().toISOString() });
-      historyRows.push({ ticker, date: today, aum, price });
+      if (aum) historyRows.push({ ticker, date: today, aum, price });
     }
+    await sleep(DELAY);
   }
+
+  console.log(`[update-aum] Got ${etfRows.length} quotes from Yahoo Finance`);
 
   // Upsert into etfs (only AUM/price columns — don't overwrite metadata)
   if (etfRows.length > 0) {
