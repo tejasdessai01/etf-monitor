@@ -30,12 +30,16 @@ export default function DashboardPage() {
 
         {/* Row 1 right: Top Movers + Filings */}
         <div className="dashboard-right-col">
-          <Suspense fallback={<PanelSkeleton height={260} />}>
-            <TopMovers />
-          </Suspense>
-          <Suspense fallback={<PanelSkeleton height={288} />}>
-            <FilingsPanel />
-          </Suspense>
+          <div className="dashboard-movers">
+            <Suspense fallback={<PanelSkeleton height={260} />}>
+              <TopMovers />
+            </Suspense>
+          </div>
+          <div className="dashboard-filings">
+            <Suspense fallback={<PanelSkeleton height={288} />}>
+              <FilingsPanel />
+            </Suspense>
+          </div>
         </div>
 
         {/* ── Row 2 left: New Launches + Issuer ────────────────────────── */}

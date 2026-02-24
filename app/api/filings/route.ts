@@ -23,7 +23,8 @@ function buildEdgarUrl(form: string, days: number): string {
 interface EdgarHit {
   _source: {
     file_date: string;
-    entity_name: string;
+    entity_name?: string;
+    display_names?: Array<{ name: string; cik: string }>;
     file_num: string;
     accession_no: string;
     form_type: string;
@@ -48,7 +49,7 @@ async function fetchFilings(form: string, days: number): Promise<Filing[]> {
       return {
         id: h._id,
         formType: s.form_type ?? form,
-        entityName: s.entity_name ?? 'Unknown Entity',
+        entityName: s.entity_name || s.display_names?.[0]?.name || 'Unknown Entity',
         filedAt: s.file_date ?? new Date().toISOString(),
         accessionNo: s.accession_no ?? '',
         url: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&filenum=${s.file_num}&type=${form}&dateb=&owner=include&count=10`,

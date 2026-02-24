@@ -7,7 +7,7 @@ import { CATEGORY_COLORS } from '@/lib/etf-data';
 import HoldingsDrawer from '@/components/HoldingsDrawer';
 import type { ETF } from '@/types';
 
-type SortKey = 'aum' | 'changePct' | 'expenseRatio' | 'ticker';
+type SortKey = 'aum' | 'price' | 'changePct' | 'expenseRatio' | 'ticker';
 type SortDir = 'asc' | 'desc';
 
 const CATEGORIES = ['All', 'US Equity', 'Fixed Income', 'Sector', 'Commodities', 'International', 'Digital Assets', 'Thematic', 'Leveraged'];
@@ -50,6 +50,7 @@ export default function ETFTable() {
     out = [...out].sort((a, b) => {
       let va: number | string = 0, vb: number | string = 0;
       if (sortKey === 'aum')         { va = a.aum; vb = b.aum; }
+      if (sortKey === 'price')       { va = a.price ?? -1; vb = b.price ?? -1; }
       if (sortKey === 'changePct')   { va = a.changePct ?? -999; vb = b.changePct ?? -999; }
       if (sortKey === 'expenseRatio'){ va = a.expenseRatio; vb = b.expenseRatio; }
       if (sortKey === 'ticker')      { va = a.ticker; vb = b.ticker; }
@@ -163,7 +164,7 @@ export default function ETFTable() {
               </th>
               <th className="col-issuer" style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Issuer</th>
               <ColHeader label="AUM"      k="aum" />
-              <ColHeader label="Price"    k="aum" style={{ color: 'var(--text-muted)' }} className="col-price" />
+              <ColHeader label="Price"    k="price" className="col-price" />
               <ColHeader label="1D Chg"   k="changePct" />
               <ColHeader label="Exp Ratio" k="expenseRatio" className="col-expense" />
               <th className="col-holdings" style={{ padding: '8px 8px', width: '32px' }} />

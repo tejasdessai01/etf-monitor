@@ -14,21 +14,37 @@ interface YahooQuote {
   marketCap?: number;
 }
 
+const YAHOO_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Referer': 'https://finance.yahoo.com/',
+  'Origin': 'https://finance.yahoo.com',
+};
+
 async function fetchYahooQuotes(tickers: string[]): Promise<Record<string, YahooQuote>> {
   const symbols = tickers.join(',');
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,marketCap`;
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ETFMonitor/1.0)', 'Accept': 'application/json' },
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return {};
-    const json = await res.json();
-    const quotes: YahooQuote[] = json?.quoteResponse?.result ?? [];
-    return Object.fromEntries(quotes.map((q) => [q.symbol, q]));
-  } catch {
-    return {};
+  const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,marketCap';
+  // Try query2 first (less aggressively rate-limited from cloud IPs), fall back to query1
+  const endpoints = [
+    `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`,
+    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`,
+  ];
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        headers: YAHOO_HEADERS,
+        next: { revalidate: 300 },
+      });
+      if (!res.ok) continue;
+      const json = await res.json();
+      const quotes: YahooQuote[] = json?.quoteResponse?.result ?? [];
+      if (quotes.length > 0) return Object.fromEntries(quotes.map((q) => [q.symbol, q]));
+    } catch {
+      // try next endpoint
+    }
   }
+  return {};
 }
 
 export async function GET(request: Request) {

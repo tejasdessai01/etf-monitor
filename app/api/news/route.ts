@@ -3,11 +3,16 @@ import type { NewsItem } from '@/types';
 
 export const revalidate = 900; // cache 15 minutes
 
-// Google News RSS — free, no auth, returns ETF industry news.
-// We proxy this to avoid CORS issues on the client.
+// RSS feeds for ETF / financial news — proxied to avoid client-side CORS.
+// Google News RSS is frequently blocked from cloud IP ranges, so we prefer
+// Yahoo Finance and Reuters which are reliably accessible server-side.
 const FEEDS = [
-  'https://news.google.com/rss/search?q=ETF+fund+United+States&hl=en-US&gl=US&ceid=US:en',
-  'https://news.google.com/rss/search?q=exchange+traded+fund+launch+SEC&hl=en-US&gl=US&ceid=US:en',
+  // Yahoo Finance – top financial stories (most reliable, no auth)
+  'https://finance.yahoo.com/rss/topstories',
+  // Reuters – business & markets news
+  'https://feeds.reuters.com/reuters/businessNews',
+  // Google News – ETF-specific search (may work when not rate-limited)
+  'https://news.google.com/rss/search?q=ETF+exchange+traded+fund&hl=en-US&gl=US&ceid=US:en',
 ];
 
 function parseRssItems(xml: string, source: string): NewsItem[] {
@@ -20,7 +25,10 @@ function parseRssItems(xml: string, source: string): NewsItem[] {
   while ((match = itemRegex.exec(xml)) !== null && items.length < 20) {
     const block = match[1];
     const title   = (/<title><!\[CDATA\[(.*?)\]\]><\/title>/.exec(block) ?? /<title>(.*?)<\/title>/.exec(block))?.[1]?.trim() ?? '';
-    const link    = (/<link>(.*?)<\/link>/.exec(block))?.[1]?.trim() ?? '';
+    // <link> is sometimes empty/self-closing in Atom-flavoured RSS; fall back to <guid>
+    const rawLink = (/<link>([\s\S]*?)<\/link>/.exec(block))?.[1]?.trim() ?? '';
+    const guid    = (/<guid[^>]*>(.*?)<\/guid>/.exec(block))?.[1]?.trim() ?? '';
+    const link    = rawLink || guid;
     const pubDate = (/<pubDate>(.*?)<\/pubDate>/.exec(block))?.[1]?.trim() ?? '';
     const desc    = (/<description><!\[CDATA\[(.*?)\]\]><\/description>/.exec(block) ?? /<description>(.*?)<\/description>/.exec(block))?.[1]?.trim() ?? '';
 
