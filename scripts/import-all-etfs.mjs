@@ -201,48 +201,59 @@ async function fetchEdgarTickers() {
   return tickers;
 }
 
-// ── 3. Validate ETF status via Yahoo Finance ─────────────────────────────────
+// ── 3. Category inference from ETF name (no Yahoo Finance needed) ────────────
 
-async function fetchYahooChunk(tickers) {
-  let session = await getYahooSession();
-  const symbols = tickers.map(t => t.ticker).join(',');
-  const fields  = 'quoteType,shortName,longName,marketCap,regularMarketPrice,regularMarketChangePercent,netExpenseRatio,category,fullExchangeName,exchange';
-
-  for (const host of ['query2', 'query1']) {
-    let url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${symbols}&fields=${fields}`;
-    if (session?.crumb) url += `&crumb=${encodeURIComponent(session.crumb)}`;
-
-    const headers = {
-      'User-Agent': YAHOO_UA,
-      'Accept': 'application/json, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Origin': 'https://finance.yahoo.com',
-      'Referer': 'https://finance.yahoo.com/',
-    };
-    if (session?.cookies) headers['Cookie'] = session.cookies;
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const res = await fetch(url, { headers });
-        if (res.status === 429) {
-          const wait = (attempt + 1) * 30000;
-          console.warn(`[import] Rate limited (${host}), waiting ${wait / 1000}s…`);
-          await sleep(wait);
-          continue;
-        }
-        if (!res.ok) break;
-        const json = await res.json();
-        const results = json?.quoteResponse?.result ?? [];
-        if (results.length > 0) return results;
-        // 200 but empty — crumb may be stale; refresh and retry
-        if (attempt === 0 && session) { _session = null; session = await getYahooSession(); }
-      } catch (e) {
-        console.warn(`[import] Yahoo ${host} chunk failed (attempt ${attempt + 1}): ${e.message}`);
-        if (attempt < 2) await sleep(3000);
-      }
-    }
-  }
-  return [];
+function mapCategoryFromName(name = '') {
+  const n = name.toLowerCase();
+  // Digital assets (check first — most specific)
+  if (/bitcoin|ethereum|crypto|blockchain|digital asset/.test(n)) return { category: 'Digital Assets', subCategory: 'Digital Assets' };
+  // Leveraged / inverse
+  if (/ultra pro|ultrashort|ultra short|leveraged|2x |3x /.test(n)) return { category: 'Leveraged', subCategory: 'Leveraged' };
+  if (/inverse|short s&p|short nasdaq/.test(n))                      return { category: 'Leveraged', subCategory: 'Inverse' };
+  // Commodities
+  if (/gold|silver|precious metal/.test(n))                           return { category: 'Commodities', subCategory: 'Precious Metals' };
+  if (/oil|natural gas|commodit|energy trust/.test(n))               return { category: 'Commodities', subCategory: 'Broad' };
+  // Real estate
+  if (/real estate|reit/.test(n))                                     return { category: 'Real Estate', subCategory: 'Diversified REIT' };
+  // Fixed income
+  if (/treasury|government bond|govt bond|t-bill|t-bond/.test(n))    return { category: 'Fixed Income', subCategory: 'Treasury' };
+  if (/high yield|junk bond/.test(n))                                 return { category: 'Fixed Income', subCategory: 'High Yield' };
+  if (/muni|municipal/.test(n))                                       return { category: 'Fixed Income', subCategory: 'Municipal' };
+  if (/corporate bond|corp bond|investment grade/.test(n))            return { category: 'Fixed Income', subCategory: 'Corp Bond' };
+  if (/inflation|tips/.test(n))                                       return { category: 'Fixed Income', subCategory: 'Inflation-Protected' };
+  if (/aggregate bond|total bond|bond market|bond fund/.test(n))      return { category: 'Fixed Income', subCategory: 'Broad Bond' };
+  if (/\bbond\b|fixed income/.test(n))                                return { category: 'Fixed Income', subCategory: 'Broad Bond' };
+  // International
+  if (/emerging market|developing market/.test(n))                    return { category: 'International', subCategory: 'Emerging Markets' };
+  if (/\bchina\b|\bchinese\b/.test(n))                                return { category: 'International', subCategory: 'China' };
+  if (/\bjapan\b|\bjapanese\b/.test(n))                               return { category: 'International', subCategory: 'Japan' };
+  if (/\beurope\b|\beuropean\b/.test(n))                              return { category: 'International', subCategory: 'Europe' };
+  if (/\bindia\b|\bindian\b/.test(n))                                 return { category: 'International', subCategory: 'India' };
+  if (/international|foreign|global|world|eafe|ex-us/.test(n))       return { category: 'International', subCategory: 'Developed Markets' };
+  // Sector
+  if (/semiconductor/.test(n))                                        return { category: 'Sector', subCategory: 'Semiconductors' };
+  if (/technology|tech fund|tech etf/.test(n))                       return { category: 'Sector', subCategory: 'Technology' };
+  if (/biotech|health care|healthcare|pharmaceutical|medical/.test(n)) return { category: 'Sector', subCategory: 'Health Care' };
+  if (/financial|banking sector/.test(n))                             return { category: 'Sector', subCategory: 'Financials' };
+  if (/consumer/.test(n))                                             return { category: 'Sector', subCategory: 'Consumer' };
+  if (/industrial/.test(n))                                           return { category: 'Sector', subCategory: 'Industrials' };
+  if (/material|metals & mining/.test(n))                             return { category: 'Sector', subCategory: 'Materials' };
+  if (/utilit/.test(n))                                               return { category: 'Sector', subCategory: 'Utilities' };
+  if (/communication|telecom/.test(n))                                return { category: 'Sector', subCategory: 'Comm. Services' };
+  // ESG
+  if (/esg|sustainable|socially responsible|environmental/.test(n))  return { category: 'ESG', subCategory: 'ESG' };
+  // Dividend
+  if (/dividend/.test(n))                                             return { category: 'US Equity', subCategory: 'Dividend' };
+  // Cap size
+  if (/small.cap|russell 2000|s&p smallcap/.test(n))                  return { category: 'US Equity', subCategory: 'Small Cap Blend' };
+  if (/mid.cap|russell midcap|s&p midcap/.test(n))                    return { category: 'US Equity', subCategory: 'Mid Cap Blend' };
+  if (/large.cap|s&p 500|total market|total stock/.test(n))           return { category: 'US Equity', subCategory: 'Large Cap Blend' };
+  if (/\bgrowth\b/.test(n))                                           return { category: 'US Equity', subCategory: 'Large Cap Growth' };
+  if (/\bvalue\b/.test(n))                                            return { category: 'US Equity', subCategory: 'Large Cap Value' };
+  // Multi-asset
+  if (/allocation|balanced|target.?date|retirement/.test(n))          return { category: 'Multi-Asset', subCategory: 'Allocation' };
+  // Default
+  return { category: 'US Equity', subCategory: 'US Equity' };
 }
 
 // ── 4. Main ──────────────────────────────────────────────────────────────────
@@ -250,100 +261,59 @@ async function fetchYahooChunk(tickers) {
 async function main() {
   console.log(`[import] Starting full ETF universe import — ${new Date().toISOString()}`);
 
-  // Step 1: get all exchange-listed tickers
+  // Step 1: get all exchange-listed tickers + titles from EDGAR
   const allTickers = await fetchEdgarTickers();
 
-  // Step 2: pre-filter to ETF candidates using the EDGAR title field.
-  // This reduces Yahoo Finance calls from ~750 chunks to ~150,
-  // dramatically lowering the chance of hitting rate limits.
-  // Known ETF fund families + generic ETF keywords.
-  // "trust" catches GLD (SPDR Gold Trust), IAU, SLV, QQQ (Invesco QQQ Trust), etc.
-  // Mutual funds are rarely exchange-listed, so trust/fund false-positives are minimal.
-  const ETF_KEYWORDS = ['etf', 'exchange-traded', 'exchange traded', 'etp', 'ishares', 'spdr', 'proshares', 'wisdomtree', 'direxion', 'invesco', 'powershares', 'graniteshares', 'vaneck', 'ark invest', 'global x'];
+  // Step 2: filter to ETF candidates by SEC-registered name.
+  // We use Yahoo Finance only for price enrichment AFTER identifying candidates,
+  // so the registry is always populated even if Yahoo is unavailable.
+  const ETF_KEYWORDS = [
+    'etf', 'exchange-traded', 'exchange traded', 'etp',
+    // Major issuers (catches ETFs whose names don't contain "etf")
+    'ishares', 'spdr', 'proshares', 'wisdomtree', 'direxion',
+    'invesco', 'powershares', 'graniteshares', 'vaneck', 'ark invest', 'global x',
+    'vanguard', 'first trust', 'flexshares', 'xtrackers', 'pacer',
+    'amplify', 'defiance', 'simplify', 'dimensional', 'columbia',
+    'goldman sachs etf', 'jpmorgan etf', 'harbor etf', 'pimco etf',
+  ];
   const etfCandidates = allTickers.filter(t => {
     const title = (t.title || '').toLowerCase();
     if (!title) return false;
     return ETF_KEYWORDS.some(kw => title.includes(kw));
   });
-  console.log(`[import] Pre-filtered to ${etfCandidates.length} ETF candidates by SEC title`);
+  console.log(`[import] ${etfCandidates.length} ETF candidates identified from SEC titles`);
 
-  // Step 3: batch through Yahoo Finance to validate ETF status and get metadata
-  const chunks = [];
-  for (let i = 0; i < etfCandidates.length; i += CHUNK) {
-    chunks.push(etfCandidates.slice(i, i + CHUNK));
-  }
+  // Step 3: build Supabase rows directly from EDGAR data.
+  // No Yahoo Finance needed — prices/AUM will be filled by update-aum.mjs.
+  const etfRows = etfCandidates.map(t => {
+    const { category, subCategory } = mapCategoryFromName(t.title);
+    return {
+      ticker:       t.ticker,
+      name:         t.title || t.ticker,
+      issuer:       '',
+      category,
+      sub_category: subCategory,
+      exchange:     mapExchange('', t.exchange),
+      cik:          t.cik,
+      updated_at:   new Date().toISOString(),
+    };
+  });
 
-  console.log(`[import] Validating ${chunks.length} chunks (${etfCandidates.length} tickers) via Yahoo Finance…`);
+  console.log(`[import] Upserting ${etfRows.length} ETF records to Supabase…`);
 
-  const etfRows = [];
-  let chunkIdx = 0;
-
-  for (const chunk of chunks) {
-    chunkIdx++;
-    if (chunkIdx % 50 === 0) {
-      console.log(`[import] Progress: ${chunkIdx}/${chunks.length} chunks, ${etfRows.length} ETFs found so far`);
-    }
-
-    const quotes = await fetchYahooChunk(chunk);
-    for (const q of quotes) {
-      if (q.quoteType !== 'ETF') continue;
-
-      const tickerEntry = chunk.find(t => t.ticker === q.symbol);
-      const { category, subCategory } = mapCategory(q.category);
-      const exchange = mapExchange(q.exchange, q.fullExchangeName);
-
-      etfRows.push({
-        ticker:         q.symbol,
-        name:           q.longName || q.shortName || q.symbol,
-        issuer:         '', // not available from Yahoo; will be blank for now
-        category,
-        sub_category:   subCategory,
-        aum:            q.marketCap && q.marketCap > 100000 ? Math.round(q.marketCap) : null,
-        expense_ratio:  q.netExpenseRatio ?? null,
-        exchange,
-        cik:            tickerEntry?.cik ?? null,
-        price:          q.regularMarketPrice ?? null,
-        change_pct:     q.regularMarketChangePercent ?? null,
-        updated_at:     new Date().toISOString(),
-      });
-    }
-
-    await sleep(DELAY_MS);
-  }
-
-  console.log(`[import] Found ${etfRows.length} ETFs. Upserting to Supabase...`);
-
-  // Step 3: upsert in batches of 200 (Supabase row limit per upsert)
+  // Step 4: upsert in batches of 200
   const BATCH = 200;
   let upserted = 0;
 
   for (let i = 0; i < etfRows.length; i += BATCH) {
     const batch = etfRows.slice(i, i + BATCH);
-    const { error } = await sb
-      .from('etfs')
-      .upsert(batch, { onConflict: 'ticker' });
-
-    if (error) {
-      console.error(`[import] Upsert error (batch ${i / BATCH + 1}):`, error.message);
-    } else {
-      upserted += batch.length;
-    }
+    const { error } = await sb.from('etfs').upsert(batch, { onConflict: 'ticker' });
+    if (error) console.error(`[import] Upsert error (batch ${Math.ceil(i / BATCH) + 1}):`, error.message);
+    else upserted += batch.length;
   }
 
-  // Step 4: write a daily AUM snapshot for this run
-  const today = new Date().toISOString().split('T')[0];
-  const historyRows = etfRows
-    .filter(e => e.aum)
-    .map(e => ({ ticker: e.ticker, date: today, aum: e.aum, price: e.price }));
-
-  for (let i = 0; i < historyRows.length; i += BATCH) {
-    await sb.from('aum_history').upsert(historyRows.slice(i, i + BATCH), {
-      onConflict: 'ticker,date',
-      ignoreDuplicates: true,
-    });
-  }
-
-  console.log(`[import] Done — ${upserted} ETFs upserted, ${historyRows.length} AUM snapshots written`);
+  console.log(`[import] Done — ${upserted} ETFs upserted`);
+  console.log(`[import] Prices/AUM will be populated by the next update-aum run.`);
   console.log(`[import] Finished — ${new Date().toISOString()}`);
 }
 
