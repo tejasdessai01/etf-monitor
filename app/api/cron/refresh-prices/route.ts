@@ -41,7 +41,7 @@ async function fetchYahooQuotes(tickers: string[]): Promise<Record<string, {
       );
       if (!res.ok) continue;
       const json = await res.json();
-      const quotes: { symbol: string }[] = json?.quoteResponse?.result ?? [];
+      const quotes: { symbol: string; regularMarketPrice?: number; regularMarketChangePercent?: number; marketCap?: number; shortName?: string }[] = json?.quoteResponse?.result ?? [];
       if (quotes.length > 0) return Object.fromEntries(quotes.map(q => [q.symbol, q]));
     } catch { /* try next host */ }
   }

@@ -45,14 +45,19 @@ async function fetchFilings(form: string, days: number): Promise<Filing[]> {
 
     return hits.slice(0, 30).map((h): Filing => {
       const s = h._source;
+      const cik = s.display_names?.[0]?.cik ?? '';
       const accNo = s.accession_no?.replace(/-/g, '') ?? '';
+      // Build filing index URL: direct link to this specific filing on EDGAR
+      const url = cik && accNo
+        ? `https://www.sec.gov/Archives/edgar/data/${cik}/${accNo}/${s.accession_no}-index.htm`
+        : `https://efts.sec.gov/LATEST/search-index?q=%22${s.accession_no ?? ''}%22&forms=${form}`;
       return {
         id: h._id,
         formType: s.form_type ?? form,
         entityName: s.entity_name || s.display_names?.[0]?.name || 'Unknown Entity',
         filedAt: s.file_date ?? new Date().toISOString(),
         accessionNo: s.accession_no ?? '',
-        url: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&filenum=${s.file_num}&type=${form}&dateb=&owner=include&count=10`,
+        url,
         isNew: form === 'N-1A',
       };
     });

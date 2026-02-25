@@ -23,7 +23,7 @@ export default function NewsPanel() {
           <Newspaper size={14} color="#eab308" />
           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>ETF News</span>
         </div>
-        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>via Google News · 15m cache</span>
+        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Yahoo Finance · Reuters · 15m cache</span>
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -37,7 +37,7 @@ export default function NewsPanel() {
           : items.length === 0
           ? (
             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-              News feed unavailable. Google News RSS may be blocked.
+              News feed unavailable. RSS sources may be temporarily unreachable.
             </div>
           )
           : items.map((item) => (

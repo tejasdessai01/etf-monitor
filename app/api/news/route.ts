@@ -6,13 +6,13 @@ export const revalidate = 900; // cache 15 minutes
 // RSS feeds for ETF / financial news — proxied to avoid client-side CORS.
 // Google News RSS is frequently blocked from cloud IP ranges, so we prefer
 // Yahoo Finance and Reuters which are reliably accessible server-side.
-const FEEDS = [
+const FEEDS: { url: string; source: string }[] = [
   // Yahoo Finance – top financial stories (most reliable, no auth)
-  'https://finance.yahoo.com/rss/topstories',
+  { url: 'https://finance.yahoo.com/rss/topstories', source: 'Yahoo Finance' },
   // Reuters – business & markets news
-  'https://feeds.reuters.com/reuters/businessNews',
+  { url: 'https://feeds.reuters.com/reuters/businessNews', source: 'Reuters' },
   // Google News – ETF-specific search (may work when not rate-limited)
-  'https://news.google.com/rss/search?q=ETF+exchange+traded+fund&hl=en-US&gl=US&ceid=US:en',
+  { url: 'https://news.google.com/rss/search?q=ETF+exchange+traded+fund&hl=en-US&gl=US&ceid=US:en', source: 'Google News' },
 ];
 
 function parseRssItems(xml: string, source: string): NewsItem[] {
@@ -56,14 +56,21 @@ function parseRssItems(xml: string, source: string): NewsItem[] {
 
 export async function GET() {
   const results = await Promise.allSettled(
-    FEEDS.map(async (feed) => {
-      const res = await fetch(feed, {
-        headers: { 'User-Agent': 'ETFMonitor/1.0 tejasusd@gmail.com' },
-        next: { revalidate: 900 },
-      });
-      if (!res.ok) return [];
-      const xml = await res.text();
-      return parseRssItems(xml, 'Google News');
+    FEEDS.map(async ({ url, source }) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'ETFMonitor/1.0 tejasusd@gmail.com' },
+          next: { revalidate: 900 },
+          signal: controller.signal,
+        });
+        if (!res.ok) return [];
+        const xml = await res.text();
+        return parseRssItems(xml, source);
+      } finally {
+        clearTimeout(timer);
+      }
     })
   );
 
