@@ -50,7 +50,7 @@ jobs:
     steps:
       - name: Trigger price refresh on Vercel
         run: |
-          HTTP=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+          HTTP=$(curl -sL -o /tmp/resp.json -w "%{http_code}" \
             -X POST "${{ vars.VERCEL_APP_URL }}/api/cron/refresh-prices" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
