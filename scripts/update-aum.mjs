@@ -49,12 +49,39 @@ const YAHOO_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (
 
 // Yahoo Finance requires a crumb + session cookie since ~2023.
 // Without it the API returns HTTP 200 with an empty quoteResponse.result.
+// finance.yahoo.com (homepage) is sometimes DNS-blocked on GitHub Actions runners,
+// but query2.finance.yahoo.com (API servers) is on different infrastructure.
+// We try three strategies in order:
+//   1. Crumb from query2 without any cookie (works when API servers are reachable)
+//   2. Crumb from query1 without any cookie
+//   3. Cookie from homepage → crumb exchange (full flow, needs homepage access)
+
 let _session = null; // { crumb, cookies }
 
 async function getYahooSession() {
   if (_session) return _session;
+
+  // Strategy 1 & 2: cookie-less crumb (query2 then query1)
+  for (const host of ['query2', 'query1']) {
+    try {
+      const r = await fetch(`https://${host}.finance.yahoo.com/v1/test/getcrumb`, {
+        headers: { 'User-Agent': YAHOO_UA },
+      });
+      if (r.ok) {
+        const crumb = (await r.text()).trim();
+        if (crumb && crumb !== 'null' && crumb.length > 2) {
+          _session = { crumb, cookies: '' };
+          console.log(`[update-aum] Yahoo crumb via ${host} (no cookie): ${crumb.slice(0, 6)}…`);
+          return _session;
+        }
+      }
+    } catch (e) {
+      console.warn(`[update-aum] Cookie-less crumb (${host}) failed: ${e.message}`);
+    }
+  }
+
+  // Strategy 3: homepage → cookie → crumb
   try {
-    // Step 1: load the homepage to collect session cookies
     const r1 = await fetch('https://finance.yahoo.com/', {
       headers: { 'User-Agent': YAHOO_UA, 'Accept': 'text/html,application/xhtml+xml' },
     });
@@ -63,20 +90,19 @@ async function getYahooSession() {
       : [r1.headers.get('set-cookie') ?? ''];
     const cookies = setCookies.map(c => c.split(';')[0]).filter(Boolean).join('; ');
 
-    // Step 2: exchange cookies for a crumb
     const r2 = await fetch('https://query1.finance.yahoo.com/v1/test/getcrumb', {
       headers: { 'User-Agent': YAHOO_UA, 'Cookie': cookies },
     });
     if (r2.ok) {
       const crumb = (await r2.text()).trim();
       _session = { crumb, cookies };
-      console.log(`[update-aum] Yahoo session ready (crumb=${crumb.slice(0, 6)}…)`);
-    } else {
-      console.warn(`[update-aum] getcrumb returned ${r2.status}`);
+      console.log(`[update-aum] Yahoo session via homepage (crumb=${crumb.slice(0, 6)}…)`);
     }
   } catch (e) {
-    console.warn('[update-aum] Failed to fetch Yahoo crumb:', e.message);
+    console.warn('[update-aum] Homepage crumb strategy failed:', e.message);
   }
+
+  if (!_session) console.warn('[update-aum] All crumb strategies failed — will try API without crumb');
   return _session;
 }
 
