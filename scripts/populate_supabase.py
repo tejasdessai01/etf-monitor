@@ -304,14 +304,16 @@ def fetch_edgar_tickers():
     rows   = data_ex.get("data", [])
     if fields and rows:
         fi_ticker   = fields.index("ticker")
-        fi_cik      = fields.index("cik_str")
+        fi_cik      = fields.index("cik") if "cik" in fields else (fields.index("cik_str") if "cik_str" in fields else -1)
         fi_exchange = fields.index("exchange")
+        # company_tickers_exchange also has a "name" column we can use as title fallback
+        fi_name     = fields.index("name") if "name" in fields else -1
         for row in rows:
             exchange = row[fi_exchange]
             ticker   = str(row[fi_ticker]).upper()
             if exchange in VALID_EXCHANGES and ticker:
-                cik = str(row[fi_cik]).zfill(10)
-                title = title_map.get(ticker, "")
+                cik   = str(row[fi_cik]).zfill(10) if fi_cik >= 0 else ""
+                title = title_map.get(ticker, "") or (str(row[fi_name]) if fi_name >= 0 else "")
                 tickers.append({"ticker": ticker, "cik": cik,
                                  "exchange": exchange, "title": title})
     else:
