@@ -7,7 +7,6 @@ import NewsPanel from '@/components/NewsPanel';
 import TopMovers from '@/components/TopMovers';
 import NewLaunches from '@/components/NewLaunches';
 import IssuerSnapshot from '@/components/IssuerSnapshot';
-import SocialPanel from '@/components/SocialPanel';
 import FlowsPanel from '@/components/FlowsPanel';
 import { SEED_ETFS } from '@/lib/etf-data';
 
@@ -28,7 +27,7 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* Row 1 right: Top Movers + Filings */}
+        {/* ── Row 1 right: Top Movers + Filings ────────────────────────── */}
         <div className="dashboard-right-col">
           <div className="dashboard-movers">
             <Suspense fallback={<PanelSkeleton height={260} />}>
@@ -52,21 +51,16 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* Row 2 right: News + Social */}
+        {/* ── Row 2 right: News (full height) ──────────────────────────── */}
         <div className="dashboard-bottom-right">
-          <div className="dashboard-news-wrap">
-            <Suspense fallback={<PanelSkeleton height={260} />}>
-              <NewsPanel />
-            </Suspense>
-          </div>
-          <div className="dashboard-social-wrap">
-            <SocialPanel />
-          </div>
+          <Suspense fallback={<PanelSkeleton height={360} />}>
+            <NewsPanel />
+          </Suspense>
         </div>
 
         {/* ── Row 3: Fund Flows full width ─────────────────────────────── */}
         <div className="dashboard-flows" style={{ gridColumn: '1 / -1' }}>
-          <Suspense fallback={<PanelSkeleton height={340} />}>
+          <Suspense fallback={<PanelSkeleton height={300} />}>
             <FlowsPanel />
           </Suspense>
         </div>
@@ -84,7 +78,7 @@ export default function DashboardPage() {
         gap: '8px',
       }}>
         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-          ETF Monitor v1 · SEC EDGAR &amp; Yahoo Finance · Not financial advice
+          ETF Monitor · SEC EDGAR &amp; Yahoo Finance · Not financial advice
         </span>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           {[

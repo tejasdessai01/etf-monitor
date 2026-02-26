@@ -105,6 +105,7 @@ export default function ETFTable() {
           </span>
         </div>
         <input
+          className="etf-search"
           placeholder="Search ticker, name, issuer…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(0); }}

@@ -1,41 +1,48 @@
 @import "tailwindcss";
 
+/* ── Design tokens ───────────────────────────────────────────────────────── */
 :root {
-  --bg-primary: #08080d;
-  --bg-panel: #0f0f17;
+  --bg-primary:     #08080d;
+  --bg-panel:       #0f0f17;
   --bg-panel-hover: #13131e;
-  --border: #1c1c2e;
-  --border-bright: #252538;
-  --text-primary: #e2e8f0;
+  --border:         #1c1c2e;
+  --border-bright:  #252538;
+  --text-primary:   #e2e8f0;
   --text-secondary: #64748b;
-  --text-muted: #3d4a5c;
-  --green: #22c55e;
-  --red: #ef4444;
-  --blue: #3b82f6;
+  --text-muted:     #3d4a5c;
+  --green:  #22c55e;
+  --red:    #ef4444;
+  --blue:   #3b82f6;
   --yellow: #eab308;
   --purple: #a855f7;
 }
 
+/* ── Base ────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Ensure the page itself scrolls — never clip it */
+  overflow-x: hidden;
 }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 4px; height: 4px; }
+::-webkit-scrollbar-track   { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb   { background: var(--border-bright); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: #3d3d5c; }
 
+/* ── Panel shell ─────────────────────────────────────────────────────────── */
 .panel {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 8px;
+  /* panels must never clip the page scroll */
+  overflow: visible;
 }
 .panel-header {
   padding: 12px 16px;
@@ -45,8 +52,10 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
+  flex-shrink: 0;
 }
 
+/* ── Utility ─────────────────────────────────────────────────────────────── */
 .positive { color: var(--green); }
 .negative { color: var(--red); }
 .neutral  { color: var(--text-secondary); }
@@ -78,7 +87,7 @@ body {
 
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  100% { background-position:  200% 0; }
 }
 .skeleton {
   background: linear-gradient(90deg, var(--border) 25%, var(--border-bright) 50%, var(--border) 75%);
@@ -87,8 +96,19 @@ body {
   border-radius: 4px;
 }
 
-/* ── Responsive layout ───────────────────────────────────────────────────── */
+/* ── Stats bar ───────────────────────────────────────────────────────────── */
+.stats-bar-row {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.stats-bar-row::-webkit-scrollbar { display: none; }
 
+/* ── Dashboard grid — desktop default ───────────────────────────────────── */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 340px;
@@ -96,22 +116,27 @@ body {
   padding: 12px;
   max-width: 1600px;
   margin: 0 auto;
+  /* Critical: the grid must not clip overflow */
+  overflow: visible;
 }
 
-/* ETF Table wrapper — height lives here so media queries can override it */
-.dashboard-etf-table { height: 560px; }
+/* Row 1 left */
+.dashboard-etf-table {
+  height: 560px;
+  /* inner panel uses overflow:auto for the table rows */
+}
 
+/* Row 1 right */
 .dashboard-right-col {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: 560px; /* matches ETF table */
+  height: 560px;
 }
-
-/* Top-Movers slot: fixed height; FilingsPanel fills the rest */
 .dashboard-movers  { height: 260px; flex-shrink: 0; }
-.dashboard-filings { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.dashboard-filings { flex: 1 1 0; min-height: 0; }
 
+/* Row 2 left */
 .dashboard-bottom-left {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -119,32 +144,23 @@ body {
   height: 360px;
 }
 
-.dashboard-bottom-right {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  height: 360px;
-}
+/* Row 2 right — news fills the entire column */
+.dashboard-bottom-right { height: 360px; }
 
-/* NewsPanel wrapper: grows to fill available space */
-.dashboard-news-wrap   { flex: 1 1 0; min-height: 0; overflow: hidden; }
-/* SocialPanel wrapper: takes its natural height */
-.dashboard-social-wrap { flex-shrink: 0; }
+/* Row 3 */
+.dashboard-flows { height: 320px; }
 
-/* FlowsPanel */
-.dashboard-flows { height: 340px; }
-
-/* ── Tablet (≤1100px): collapse to single column ─────────────────────────── */
+/* ── Tablet (≤1100px): single column ────────────────────────────────────── */
 @media (max-width: 1100px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
 
+  /* Movers + Filings side-by-side */
   .dashboard-right-col {
     flex-direction: row;
-    height: 280px;
+    height: 300px;
   }
-
   .dashboard-movers,
   .dashboard-filings {
     flex: 1 1 0;
@@ -153,69 +169,55 @@ body {
   }
 }
 
-/* ── Mobile (≤768px) ─────────────────────────────────────────────────────── */
+/* ── Mobile (≤768px): stacked, page scrolls ─────────────────────────────── */
 @media (max-width: 768px) {
   .dashboard-grid {
     padding: 8px;
     gap: 8px;
   }
 
-  /* ETF table: shorter on mobile */
-  .dashboard-etf-table { height: 420px; }
+  /* ETF table — keeps a fixed height since it has 4700 rows with pagination */
+  .dashboard-etf-table { height: 460px; }
 
-  /* Right column: stack vertically, auto height */
+  /* Right column: stack vertically */
   .dashboard-right-col {
     flex-direction: column;
     height: auto;
   }
   .dashboard-movers  { height: 260px; flex-shrink: 0; }
-  .dashboard-filings { height: 280px; flex: unset; }
+  .dashboard-filings { flex: unset; height: 280px; min-height: unset; }
 
   /* Bottom-left: single column */
   .dashboard-bottom-left {
     grid-template-columns: 1fr;
     height: auto;
   }
-  .dashboard-bottom-left > * { height: 300px; }
+  .dashboard-bottom-left > * { height: 280px; }
 
-  /* Bottom-right: auto height, each child explicit */
-  .dashboard-bottom-right { height: auto; }
-  .dashboard-news-wrap    { flex: unset; height: 280px; overflow: hidden; }
-  .dashboard-social-wrap  { flex-shrink: unset; height: auto; }
+  /* Bottom-right: news panel */
+  .dashboard-bottom-right { height: 320px; }
 
   /* Flows */
-  .dashboard-flows { height: 300px; }
+  .dashboard-flows { height: 280px; }
 }
 
-/* ── ETF Table: hide columns on small screens ────────────────────────────── */
+/* ── ETF Table: hide columns on narrow screens ───────────────────────────── */
 @media (max-width: 768px) {
   .col-issuer,
   .col-expense,
   .col-holdings { display: none !important; }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .col-price { display: none !important; }
+
+  /* Make search input fill available space on tiny screens */
+  .etf-search { width: 100% !important; }
 }
 
-/* ── Header: mobile ──────────────────────────────────────────────────────── */
+/* ── Header: hide nav on mobile ─────────────────────────────────────────── */
 @media (max-width: 768px) {
   .header-nav   { display: none !important; }
   .header-edgar { display: none !important; }
-}
-
-/* ── Stats bar: scroll on mobile ─────────────────────────────────────────── */
-.stats-bar-row {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border);
-  padding: 0 20px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-@media (max-width: 768px) {
-  .stats-bar-row {
-    padding: 0 12px;
-  }
+  .stats-bar-row { padding: 0 12px; }
 }
