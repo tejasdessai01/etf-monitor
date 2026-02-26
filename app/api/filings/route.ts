@@ -16,21 +16,20 @@ function buildEdgarUrl(form: string, days: number): string {
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   return (
     `https://efts.sec.gov/LATEST/search-index?forms=${form}` +
-    `&dateRange=custom&startdt=${fmt(start)}&enddt=${fmt(end)}&hits.hits._source=true`
+    `&dateRange=custom&startdt=${fmt(start)}&enddt=${fmt(end)}`
   );
 }
 
 interface EdgarHit {
   _source: {
     file_date: string;
-    entity_name?: string;
-    display_names?: Array<{ name: string; cik: string }>;
-    file_num: string;
-    accession_no: string;
-    form_type: string;
-    period_of_report?: string;
-    description?: string;  // sometimes present in SGML header
-    subject?: string;
+    display_names?: string[];        // e.g. ["Bridgeway ETF Trust  (CIK 0002097519)"]
+    ciks?: string[];                 // e.g. ["0002097519"]
+    adsh?: string;                   // accession number with dashes e.g. "0002071844-26-000130"
+    form?: string;                   // e.g. "N-1A/A"
+    file_type?: string;
+    file_description?: string | null;
+    file_num?: string[];
   };
   _id: string;
 }
@@ -92,17 +91,23 @@ async function fetchFilings(form: string, days: number): Promise<Filing[]> {
 
     return hits.slice(0, 30).map((h): Filing => {
       const s = h._source;
-      const cik = s.display_names?.[0]?.cik ?? '';
-      const accNo = s.accession_no?.replace(/-/g, '') ?? '';
-      // Build filing index URL: direct link to this specific filing on EDGAR
-      const url = cik && accNo
-        ? `https://www.sec.gov/Archives/edgar/data/${cik}/${accNo}/${s.accession_no}-index.htm`
-        : `https://efts.sec.gov/LATEST/search-index?q=%22${s.accession_no ?? ''}%22&forms=${form}`;
 
-      const rawEntity = s.entity_name || s.display_names?.[0]?.name || 'Unknown';
+      // display_names is string[] like "Bridgeway ETF Trust  (CIK 0002097519)"
+      const rawDisplayName = s.display_names?.[0] ?? '';
+      const rawEntity = rawDisplayName.replace(/\s*\(CIK\s+\d+\)\s*$/i, '').trim() || 'Unknown';
       const issuer = friendlyIssuer(rawEntity);
-      // Use description from EDGAR if meaningful, otherwise build from form type
-      const rawDesc = s.description ?? s.subject ?? '';
+
+      // CIK for building the EDGAR URL
+      const cik = s.ciks?.[0]?.replace(/^0+/, '') ?? '';
+      const adsh = s.adsh ?? '';
+      const accNoNoDash = adsh.replace(/-/g, '');
+
+      const url = cik && accNoNoDash
+        ? `https://www.sec.gov/Archives/edgar/data/${cik}/${accNoNoDash}/${adsh}-index.htm`
+        : `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=${encodeURIComponent(form)}&dateb=&owner=include&count=40`;
+
+      const formType = s.form ?? s.file_type ?? form;
+      const rawDesc = s.file_description ?? '';
       const isBoilerplate = !rawDesc || /registration statement|annual report/i.test(rawDesc);
       const description = isBoilerplate
         ? FORM_ACTION[form] ?? form
@@ -110,10 +115,10 @@ async function fetchFilings(form: string, days: number): Promise<Filing[]> {
 
       return {
         id: h._id,
-        formType: s.form_type ?? form,
+        formType,
         entityName: issuer,
         filedAt: s.file_date ?? new Date().toISOString(),
-        accessionNo: s.accession_no ?? '',
+        accessionNo: adsh,
         url,
         description,
         isNew: form === 'N-1A',
