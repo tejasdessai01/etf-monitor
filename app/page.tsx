@@ -22,7 +22,7 @@ export default function DashboardPage() {
       <main id="overview" className="dashboard-grid">
 
         {/* ── Row 1 left: ETF Table ─────────────────────────────────────── */}
-        <div style={{ height: '560px' }}>
+        <div className="dashboard-etf-table">
           <Suspense fallback={<PanelSkeleton height={560} />}>
             <ETFTable />
           </Suspense>
@@ -54,18 +54,18 @@ export default function DashboardPage() {
 
         {/* Row 2 right: News + Social */}
         <div className="dashboard-bottom-right">
-          <div style={{ flex: '1 1 0', minHeight: 0 }}>
+          <div className="dashboard-news-wrap">
             <Suspense fallback={<PanelSkeleton height={260} />}>
               <NewsPanel />
             </Suspense>
           </div>
-          <div style={{ flexShrink: 0 }}>
+          <div className="dashboard-social-wrap">
             <SocialPanel />
           </div>
         </div>
 
         {/* ── Row 3: Fund Flows full width ─────────────────────────────── */}
-        <div className="dashboard-flows" style={{ gridColumn: '1 / -1', height: '340px' }}>
+        <div className="dashboard-flows" style={{ gridColumn: '1 / -1' }}>
           <Suspense fallback={<PanelSkeleton height={340} />}>
             <FlowsPanel />
           </Suspense>

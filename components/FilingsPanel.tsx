@@ -145,6 +145,18 @@ export default function FilingsPanel() {
                     }}>
                       {f.entityName}
                     </div>
+                    {f.description && (
+                      <div style={{
+                        fontSize: '10px',
+                        color: 'var(--text-secondary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        marginTop: '1px',
+                      }}>
+                        {f.description}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
                     <ExternalLink size={10} color="var(--text-muted)" />

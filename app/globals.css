@@ -98,16 +98,19 @@ body {
   margin: 0 auto;
 }
 
+/* ETF Table wrapper — height lives here so media queries can override it */
+.dashboard-etf-table { height: 560px; }
+
 .dashboard-right-col {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: 560px; /* must match the ETF table height */
+  height: 560px; /* matches ETF table */
 }
 
 /* Top-Movers slot: fixed height; FilingsPanel fills the rest */
 .dashboard-movers  { height: 260px; flex-shrink: 0; }
-.dashboard-filings { flex: 1; min-height: 0; overflow: hidden; }
+.dashboard-filings { flex: 1 1 0; min-height: 0; overflow: hidden; }
 
 .dashboard-bottom-left {
   display: grid;
@@ -123,7 +126,15 @@ body {
   height: 360px;
 }
 
-/* ── Tablet (≤1100px): collapse right column below ───────────────────────── */
+/* NewsPanel wrapper: grows to fill available space */
+.dashboard-news-wrap   { flex: 1 1 0; min-height: 0; overflow: hidden; }
+/* SocialPanel wrapper: takes its natural height */
+.dashboard-social-wrap { flex-shrink: 0; }
+
+/* FlowsPanel */
+.dashboard-flows { height: 340px; }
+
+/* ── Tablet (≤1100px): collapse to single column ─────────────────────────── */
 @media (max-width: 1100px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
@@ -131,14 +142,12 @@ body {
 
   .dashboard-right-col {
     flex-direction: row;
-    height: 260px;
+    height: 280px;
   }
-
-  .dashboard-right-col > * { flex: 1; }
 
   .dashboard-movers,
   .dashboard-filings {
-    flex: 1;
+    flex: 1 1 0;
     height: 100%;
     min-height: unset;
   }
@@ -151,36 +160,31 @@ body {
     gap: 8px;
   }
 
+  /* ETF table: shorter on mobile */
+  .dashboard-etf-table { height: 420px; }
+
+  /* Right column: stack vertically, auto height */
   .dashboard-right-col {
     flex-direction: column;
     height: auto;
   }
+  .dashboard-movers  { height: 260px; flex-shrink: 0; }
+  .dashboard-filings { height: 280px; flex: unset; }
 
-  .dashboard-right-col > * {
-    flex: unset;
-    height: 280px;
-  }
-
+  /* Bottom-left: single column */
   .dashboard-bottom-left {
     grid-template-columns: 1fr;
     height: auto;
   }
+  .dashboard-bottom-left > * { height: 300px; }
 
-  .dashboard-bottom-left > * {
-    height: 300px;
-  }
+  /* Bottom-right: auto height, each child explicit */
+  .dashboard-bottom-right { height: auto; }
+  .dashboard-news-wrap    { flex: unset; height: 280px; overflow: hidden; }
+  .dashboard-social-wrap  { flex-shrink: unset; height: auto; }
 
-  .dashboard-bottom-right {
-    height: auto;
-  }
-
-  .dashboard-bottom-right > * {
-    height: 280px;
-  }
-
-  .dashboard-flows {
-    height: 300px !important;
-  }
+  /* Flows */
+  .dashboard-flows { height: 300px; }
 }
 
 /* ── ETF Table: hide columns on small screens ────────────────────────────── */

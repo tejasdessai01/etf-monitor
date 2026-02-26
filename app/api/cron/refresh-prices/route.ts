@@ -59,7 +59,10 @@ export async function POST(req: Request) {
   }
 
   // ── Supabase (prefer service key for RLS bypass) ──────────────────────────
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  // SUPABASE_URL (no NEXT_PUBLIC_ prefix) is read at runtime on every request.
+  // NEXT_PUBLIC_ vars are baked in at build time; if absent during the build
+  // they are empty even when set in the Vercel dashboard later.
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const key  = process.env.SUPABASE_SERVICE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
   if (!url || !key) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });

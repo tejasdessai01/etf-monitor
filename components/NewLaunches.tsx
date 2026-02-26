@@ -89,6 +89,18 @@ export default function NewLaunches() {
                   }}>
                     {f.entityName}
                   </div>
+                  {f.description && (
+                    <div style={{
+                      fontSize: '10px',
+                      color: 'var(--text-secondary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      marginTop: '1px',
+                    }}>
+                      {f.description}
+                    </div>
+                  )}
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Filed {fmtDate(f.filedAt)}
                   </div>
