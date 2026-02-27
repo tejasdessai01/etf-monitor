@@ -26,6 +26,8 @@ interface ETFDetail {
   volume: number | null;
   avgVolume: number | null;
   holdings: Array<{ ticker: string; name: string; weight: number }>;
+  holdingsDate: string | null;
+  holdingsSource: 'nport' | 'unavailable';
   sectors:  Array<{ sector: string; weight: number }>;
   performance: Record<string, number | null>;
   priceHistory: Array<{ date: number; price: number }>;
@@ -359,9 +361,8 @@ export default function ETFPage() {
 
         {/* ── Holdings ───────────────────────────────────────────────────── */}
         <div style={{ ...panel, padding: '20px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Top Holdings</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>as reported by fund</span>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+            Top Holdings
           </div>
 
           {data.holdings.length > 0 ? (
@@ -378,9 +379,14 @@ export default function ETFPage() {
               {data.holdings.map((h, i) => (
                 <HoldingRow key={i} rank={i + 1} ticker={h.ticker} name={h.name} weight={h.weight} maxWeight={maxHolding} />
               ))}
+              {data.holdingsDate && (
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 10 }}>
+                  Source: SEC EDGAR NPORT-P filing · as of {fdate(data.holdingsDate)}
+                </div>
+              )}
             </>
           ) : (
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', paddingTop: 4 }}>Holdings data not available for this fund</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', paddingTop: 4 }}>Holdings data not available — no NPORT-P filing found for this fund</div>
           )}
         </div>
 
