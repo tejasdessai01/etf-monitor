@@ -110,14 +110,14 @@ export default function PriceChart({ data }: { data: Point[] }) {
   return (
     <div>
       {/* Controls row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           {Object.keys(PERIODS).map(p => (
             <button
               key={p}
               onClick={() => { setPeriod(p); setHover(null); }}
               style={{
-                padding: '3px 11px',
+                padding: '4px 10px',
                 fontSize: 11,
                 fontWeight: period === p ? 700 : 400,
                 border: `1px solid ${period === p ? color : 'var(--border)'}`,
@@ -126,6 +126,7 @@ export default function PriceChart({ data }: { data: Point[] }) {
                 color: period === p ? color : 'var(--text-muted)',
                 cursor: 'pointer',
                 transition: 'all 0.12s',
+                WebkitTapHighlightColor: 'transparent',
               }}
             >
               {p}
@@ -144,6 +145,7 @@ export default function PriceChart({ data }: { data: Point[] }) {
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
         style={{ width: '100%', height: H, display: 'block', overflow: 'visible', cursor: 'crosshair' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHover(null)}

@@ -217,3 +217,69 @@ body {
   .header-edgar { display: none !important; }
   .stats-bar-row { padding: 0 12px; }
 }
+
+/* ── Global iOS tap highlight ─────────────────────────────────────────────── */
+a, button { -webkit-tap-highlight-color: transparent; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Fund detail page
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Outer content wrapper */
+.fund-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+}
+
+/* Responsive inner padding for panels */
+.fp       { padding: 20px 24px; }
+.fp-hero  { padding: 22px 24px; }
+.fp-stats { padding: 18px 24px; }
+
+/* Performance + Sectors side-by-side → stacks on mobile */
+.fund-perf-sectors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.fund-perf-sectors > .panel { margin-bottom: 0 !important; }
+
+/* Holdings rows — rank | ticker | name | weight | bar */
+.fund-holding-hdr,
+.fund-holding-row {
+  display: grid;
+  grid-template-columns: 18px 48px 1fr 60px 110px;
+  align-items: center;
+  gap: 10px;
+}
+.fund-holding-hdr { padding: 4px 0 8px;  border-bottom: 1px solid var(--border); }
+.fund-holding-row { padding: 8px 0;       border-bottom: 1px solid var(--border); }
+
+/* Hero font sizes */
+.fund-ticker { font-size: 30px; }
+.fund-price  { font-size: 28px; }
+
+/* ── Mobile (≤768px) ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .fund-wrap   { padding: 12px 12px 0; }
+  .fp, .fp-hero, .fp-stats { padding: 14px 16px; }
+
+  .fund-perf-sectors { grid-template-columns: 1fr; }
+
+  /* Compress holdings: drop bar column */
+  .fund-holding-hdr,
+  .fund-holding-row  { grid-template-columns: 18px 44px 1fr 56px; gap: 8px; }
+  .fund-bar-col      { display: none !important; }
+
+  /* Smaller hero text */
+  .fund-ticker { font-size: 22px; letter-spacing: -0.5px; }
+  .fund-price  { font-size: 22px; }
+}
+
+/* ── Tiny screens (≤400px) ───────────────────────────────────────────────── */
+@media (max-width: 400px) {
+  .fund-holding-hdr,
+  .fund-holding-row { grid-template-columns: 16px 36px 1fr 50px; gap: 6px; }
+}
