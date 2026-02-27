@@ -147,8 +147,6 @@ body {
 /* Row 2 right — news fills the entire column */
 .dashboard-bottom-right { height: 360px; }
 
-/* Row 3 */
-.dashboard-flows { height: 320px; }
 
 /* ── Tablet (≤1100px): single column ────────────────────────────────────── */
 @media (max-width: 1100px) {
@@ -196,9 +194,6 @@ body {
 
   /* Bottom-right: news panel */
   .dashboard-bottom-right { height: 320px; }
-
-  /* Flows */
-  .dashboard-flows { height: 280px; }
 }
 
 /* ── ETF Table: hide columns on narrow screens ───────────────────────────── */

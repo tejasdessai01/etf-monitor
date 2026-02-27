@@ -7,7 +7,6 @@ import NewsPanel from '@/components/NewsPanel';
 import TopMovers from '@/components/TopMovers';
 import NewLaunches from '@/components/NewLaunches';
 import IssuerSnapshot from '@/components/IssuerSnapshot';
-import FlowsPanel from '@/components/FlowsPanel';
 import { SEED_ETFS } from '@/lib/etf-data';
 
 const totalAUM = SEED_ETFS.reduce((sum, e) => sum + e.aum, 0);
@@ -58,12 +57,6 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* ── Row 3: Fund Flows full width ─────────────────────────────── */}
-        <div className="dashboard-flows" style={{ gridColumn: '1 / -1' }}>
-          <Suspense fallback={<PanelSkeleton height={300} />}>
-            <FlowsPanel />
-          </Suspense>
-        </div>
 
       </main>
 
