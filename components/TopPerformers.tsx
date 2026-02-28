@@ -61,7 +61,7 @@ export default function TopPerformers() {
     abortRef.current = ac;
 
     setLoading(true);
-    fetch(`/api/performers?period=${period}&category=${encodeURIComponent(category)}&limit=50`, {
+    fetch(`/api/performers?period=${period}&category=${encodeURIComponent(category)}&limit=100`, {
       signal: ac.signal,
     })
       .then((r) => r.json())

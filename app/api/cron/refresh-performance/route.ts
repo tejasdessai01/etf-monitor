@@ -110,6 +110,31 @@ export async function POST(req: Request) {
   }
   const sb = createClient(url, key);
 
+  // ── Verify performance columns exist ─────────────────────────────────────
+  // A quick probe: try selecting the column on 1 row. If it errors with
+  // "column does not exist" we return a helpful migration hint.
+  const { error: colProbe } = await sb
+    .from('etfs')
+    .select('ytd_return')
+    .limit(1);
+  if (colProbe?.message?.includes('column') && colProbe.message.includes('ytd_return')) {
+    return NextResponse.json({
+      error: 'migrationRequired',
+      message: 'Performance columns are missing. Run the SQL migration first.',
+      sql: [
+        'ALTER TABLE etfs ADD COLUMN IF NOT EXISTS ytd_return        NUMERIC(10,6);',
+        'ALTER TABLE etfs ADD COLUMN IF NOT EXISTS one_year_return   NUMERIC(10,6);',
+        'ALTER TABLE etfs ADD COLUMN IF NOT EXISTS two_year_return   NUMERIC(10,6);',
+        'ALTER TABLE etfs ADD COLUMN IF NOT EXISTS three_year_return NUMERIC(10,6);',
+        'ALTER TABLE etfs ADD COLUMN IF NOT EXISTS perf_updated_at   TIMESTAMPTZ;',
+        'CREATE INDEX IF NOT EXISTS idx_etfs_ytd_return        ON etfs(ytd_return DESC NULLS LAST);',
+        'CREATE INDEX IF NOT EXISTS idx_etfs_one_year_return   ON etfs(one_year_return DESC NULLS LAST);',
+        'CREATE INDEX IF NOT EXISTS idx_etfs_two_year_return   ON etfs(two_year_return DESC NULLS LAST);',
+        'CREATE INDEX IF NOT EXISTS idx_etfs_three_year_return ON etfs(three_year_return DESC NULLS LAST);',
+      ].join('\n'),
+    }, { status: 400 });
+  }
+
   // ── Fetch tickers for this page ───────────────────────────────────────────
   const { data: rows, error } = await sb
     .from('etfs')
