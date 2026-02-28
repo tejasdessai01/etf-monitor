@@ -120,21 +120,38 @@ export interface PerformerEntry {
   threeYear: number | null;
 }
 
+// Fetch in small batches with a short pause between each to avoid Stooq throttling
+async function fetchAllStooq(): Promise<(({ date: number; price: number }[] | null))[]> {
+  const BATCH = 4;
+  const DELAY = 300; // ms between batches
+  const out: (({ date: number; price: number }[] | null))[] = [];
+
+  for (let i = 0; i < UNIVERSE.length; i += BATCH) {
+    const batch = UNIVERSE.slice(i, i + BATCH);
+    const results = await Promise.allSettled(batch.map(({ ticker }) => fetchStooq(ticker)));
+    for (const r of results) {
+      out.push(r.status === 'fulfilled' ? r.value : null);
+    }
+    // Pause between batches (skip after the last one)
+    if (i + BATCH < UNIVERSE.length) {
+      await new Promise((res) => setTimeout(res, DELAY));
+    }
+  }
+
+  return out;
+}
+
 export async function GET() {
-  const results = await Promise.allSettled(
-    UNIVERSE.map(({ ticker }) => fetchStooq(ticker))
-  );
+  const histories = await fetchAllStooq();
 
   const data: PerformerEntry[] = [];
 
   for (let i = 0; i < UNIVERSE.length; i++) {
     const { ticker, category } = UNIVERSE[i];
-    const result = results[i];
-    if (result.status !== 'fulfilled' || !result.value) continue;
+    const history = histories[i];
+    if (!history) continue;
 
-    const history = result.value;
     const perf = computePerf(history);
-
     data.push({
       ticker,
       name: SEED_NAMES[ticker] ?? ticker,
