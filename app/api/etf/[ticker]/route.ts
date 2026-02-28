@@ -1,85 +1,86 @@
 import { NextResponse } from 'next/server';
+import { getSupabaseClient } from '@/lib/supabase';
+import { SEED_ETFS } from '@/lib/etf-data';
 import { fetchHoldings } from '@/lib/edgar-holdings';
 
 export const revalidate = 900; // 15 min
 
-// ── Sector label mapping ──────────────────────────────────────────────────────
-const SECTOR_LABELS: Record<string, string> = {
-  realestate:             'Real Estate',
-  consumer_cyclical:      'Consumer Cyclical',
-  basic_materials:        'Basic Materials',
-  technology:             'Technology',
-  communication_services: 'Communication Services',
-  financial_services:     'Financial Services',
-  consumer_defensive:     'Consumer Defensive',
-  healthcare:             'Healthcare',
-  industrials:            'Industrials',
-  energy:                 'Energy',
-  utilities:              'Utilities',
-};
+// ── Stooq daily price history ─────────────────────────────────────────────────
+interface DayBar { date: number; price: number; volume: number }
 
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+async function fetchStooqDaily(ticker: string): Promise<DayBar[] | null> {
+  const today      = new Date();
+  const fiveYrsAgo = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
+  const d1 = fiveYrsAgo.toISOString().split('T')[0].replace(/-/g, '');
+  const d2 = today.toISOString().split('T')[0].replace(/-/g, '');
+  const url = `https://stooq.com/q/d/l/?s=${ticker.toLowerCase()}.us&d1=${d1}&d2=${d2}&i=d`;
 
-// Simple fetch — no crumb required. Used for v7/quote and v8/chart.
-async function yfOpen(url: string) {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': UA,
-      'Accept': '*/*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Referer': 'https://finance.yahoo.com/',
-    },
-    next: { revalidate: 900 },
-  });
-  if (!res.ok) throw new Error(`YF ${res.status} — ${url}`);
-  return res.json();
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      next: { revalidate: 900 },
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const lines = text.trim().split('\n');
+    if (lines.length < 3) return null;
+    // CSV: Date,Open,High,Low,Close,Volume
+    return lines
+      .slice(1)
+      .map((line) => {
+        const c = line.split(',');
+        return { date: new Date(c[0]).getTime(), price: parseFloat(c[4]), volume: parseInt(c[5], 10) || 0 };
+      })
+      .filter((p) => !isNaN(p.price) && !isNaN(p.date));
+  } catch {
+    return null;
+  }
 }
 
-// ── Performance computation from chart data ───────────────────────────────────
-function computePerformance(history: { date: number; price: number }[]) {
+// ── Performance from daily price history ──────────────────────────────────────
+function computePerformance(history: DayBar[]) {
   if (history.length < 2) return {};
 
   const latest = history[history.length - 1].price;
 
   function priceAt(daysAgo: number): number | null {
     const target = Date.now() - daysAgo * 86_400_000;
-    let best: { date: number; price: number } | null = null;
-    let bestDiff = Infinity;
+    let best: DayBar | null = null, bestDiff = Infinity;
     for (const p of history) {
       const d = Math.abs(p.date - target);
       if (d < bestDiff) { bestDiff = d; best = p; }
     }
-    // Don't use a price more than 14 days off from the target
-    return best && bestDiff < 14 * 86_400_000 ? best.price : null;
+    return best && bestDiff < 7 * 86_400_000 ? best.price : null;
   }
 
-  function ret(daysAgo: number, annualizeYears?: number): number | null {
-    const past = priceAt(daysAgo);
-    if (!past || past === 0) return null;
-    const r = (latest - past) / past;
-    return annualizeYears ? Math.pow(1 + r, 1 / annualizeYears) - 1 : r;
-  }
-
-  // YTD: Jan 1 of current year
-  const jan1 = new Date(new Date().getFullYear(), 0, 1).getTime();
-  const ytdStartPrice = (() => {
-    let best: { date: number; price: number } | null = null;
-    let bestDiff = Infinity;
+  const thisYear = new Date().getFullYear();
+  const decPrev  = history.filter((p) => new Date(p.date).getFullYear() === thisYear - 1).at(-1)?.price ?? null;
+  let ytdStart: number | null = decPrev;
+  if (!ytdStart) {
+    const jan1 = new Date(thisYear, 0, 1).getTime();
+    let best: DayBar | null = null, bestDiff = Infinity;
     for (const p of history) {
       const d = Math.abs(p.date - jan1);
       if (d < bestDiff) { bestDiff = d; best = p; }
     }
-    return best?.price ?? null;
-  })();
+    ytdStart = best?.price ?? null;
+  }
+
+  const ret = (daysAgo: number, years?: number) => {
+    const past = priceAt(daysAgo);
+    if (!past || past === 0) return null;
+    const r = (latest - past) / past;
+    return years ? Math.pow(1 + r, 1 / years) - 1 : r;
+  };
 
   return {
     '1M':  ret(30),
     '3M':  ret(91),
     '6M':  ret(182),
+    'YTD': ytdStart ? (latest - ytdStart) / ytdStart : null,
     '1Y':  ret(365),
     '3Y':  ret(1095, 3),
     '5Y':  ret(1825, 5),
-    'YTD': ytdStartPrice ? (latest - ytdStartPrice) / ytdStartPrice : null,
   };
 }
 
@@ -91,111 +92,89 @@ export async function GET(
   const { ticker } = await params;
   const sym = ticker.toUpperCase();
 
-  // Fire all requests concurrently; each fails independently
-  const [quoteResult, chartResult, holdingsResult, sectorsResult] = await Promise.allSettled([
-    // v7/quote — no crumb needed, gives price + basic stats + AUM + expense ratio
-    yfOpen(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${sym}`),
-
-    // v8/chart — no crumb needed, 5Y weekly price history
-    yfOpen(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=5y&interval=1wk&includePrePost=false`),
-
-    // SEC EDGAR NPORT-P — holdings, no rate limits
+  // Run Stooq + EDGAR concurrently
+  const [stooqResult, holdingsResult] = await Promise.allSettled([
+    fetchStooqDaily(sym),
     fetchHoldings(sym),
-
-    // quoteSummary topHoldings — sector weights only; best-effort, may 429
-    yfOpen(`https://query2.finance.yahoo.com/v10/finance/quoteSummary/${sym}?modules=topHoldings`),
   ]);
 
-  // Require at least one of quote or chart to succeed
-  if (quoteResult.status === 'rejected' && chartResult.status === 'rejected') {
+  const history: DayBar[] = stooqResult.status === 'fulfilled' ? (stooqResult.value ?? []) : [];
+
+  if (history.length === 0) {
     return NextResponse.json(
-      { error: `Could not load data for ${sym} — ${quoteResult.reason?.message}` },
-      { status: 502 },
+      { error: `No price data found for ${sym} — ticker may not be listed on a US exchange` },
+      { status: 404 },
     );
   }
 
-  // ── Quote data ────────────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const q: any =
-    quoteResult.status === 'fulfilled'
-      ? (quoteResult.value as { quoteResponse: { result: unknown[] } })?.quoteResponse?.result?.[0] ?? {}
-      : {};
+  // ── Price stats from Stooq daily ──────────────────────────────────────────
+  const latest      = history[history.length - 1];
+  const prev        = history[history.length - 2] ?? null;
+  const price       = latest.price;
+  const change      = prev ? price - prev.price : null;
+  const changePct   = prev && prev.price !== 0 ? change! / prev.price : null;
 
-  // ── Chart data ────────────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chartJson: any = chartResult.status === 'fulfilled' ? chartResult.value : null;
-  const cr = chartJson?.chart?.result?.[0];
-  const ts: number[]            = cr?.timestamp ?? [];
-  const closes: (number | null)[] = cr?.indicators?.quote?.[0]?.close ?? [];
-  const priceHistory = ts
-    .map((t, i) => ({ date: t * 1000, price: closes[i] as number }))
-    .filter(p => p.price != null && !isNaN(p.price));
+  const oneYearAgo  = Date.now() - 365 * 86_400_000;
+  const last52w     = history.filter((p) => p.date >= oneYearAgo);
+  const week52High  = last52w.length ? Math.max(...last52w.map((p) => p.price)) : null;
+  const week52Low   = last52w.length ? Math.min(...last52w.map((p) => p.price)) : null;
+  const volume      = latest.volume || null;
+  const recentVols  = history.slice(-30).map((p) => p.volume).filter(Boolean);
+  const avgVolume   = recentVols.length
+    ? Math.round(recentVols.reduce((s, v) => s + v, 0) / recentVols.length)
+    : null;
 
-  // ── Performance (computed from chart data) ────────────────────────────────
-  const performance = computePerformance(priceHistory);
+  const performance  = computePerformance(history);
+  const priceHistory = history.map((p) => ({ date: p.date, price: p.price }));
 
-  // ── Holdings (SEC EDGAR) ──────────────────────────────────────────────────
+  // ── Metadata: Supabase first, then SEED_ETFS ──────────────────────────────
+  let dbRow: Record<string, unknown> | null = null;
+  const sb = await getSupabaseClient();
+  if (sb) {
+    const { data } = await sb.from('etfs').select('*').eq('ticker', sym).single();
+    if (data) dbRow = data as Record<string, unknown>;
+  }
+
+  const seed = SEED_ETFS.find((e) => e.ticker === sym);
+
+  const name          = (dbRow?.name           as string) ?? seed?.name          ?? sym;
+  const aum           = (dbRow?.aum            as number) ?? seed?.aum           ?? null;
+  const expenseRatio  = (dbRow?.expense_ratio  as number) ?? seed?.expenseRatio  ?? null;
+  const category      = (dbRow?.category       as string) ?? seed?.category      ?? null;
+  const family        = (dbRow?.issuer         as string) ?? seed?.issuer        ?? null;
+  const inceptionDate = (dbRow?.inception_date as string) ?? seed?.inceptionDate ?? null;
+
+  // ── EDGAR holdings ────────────────────────────────────────────────────────
   const edgarResult = holdingsResult.status === 'fulfilled' ? holdingsResult.value : null;
-  const holdings = (edgarResult?.holdings ?? []).map(h => ({
+  const holdings = (edgarResult?.holdings ?? []).map((h) => ({
     ticker: h.ticker ?? '',
     name:   h.name,
     weight: h.weight,
   }));
 
-  // ── Sectors (quoteSummary topHoldings — best-effort) ──────────────────────
-  type SectorEntry = Record<string, { raw: number }>;
-  const sectorsJson =
-    sectorsResult.status === 'fulfilled'
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? (sectorsResult.value as any)?.quoteSummary?.result?.[0]?.topHoldings
-      : null;
-
-  const sectors = ((sectorsJson?.sectorWeightings as SectorEntry[]) ?? [])
-    .flatMap(obj =>
-      Object.entries(obj).map(([key, val]) => ({
-        sector: SECTOR_LABELS[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        weight: (val?.raw ?? 0) * 100,
-      })),
-    )
-    .filter(s => s.weight > 0)
-    .sort((a, b) => b.weight - a.weight);
-
-  // Use chart meta as fallback for price when v7 quote failed
-  const chartMeta = cr?.meta ?? {};
-
-  // v7/quote regularMarketChangePercent is a plain % value (e.g. 0.83 for 0.83%)
-  // Normalise to decimal fraction to match the page's (v * 100) formatting
-  const rawChangePct: number | undefined = q.regularMarketChangePercent;
-  const changePct =
-    rawChangePct != null
-      ? rawChangePct / 100
-      : null;
-
   return NextResponse.json({
-    ticker: sym,
-    name:          q.longName ?? q.shortName ?? chartMeta.shortName ?? sym,
-    price:         q.regularMarketPrice        ?? chartMeta.regularMarketPrice  ?? null,
-    change:        q.regularMarketChange       ?? null,
+    ticker:        sym,
+    name,
+    price,
+    change,
     changePct,
-    aum:           q.totalAssets              ?? null,
-    nav:           q.navPrice ?? q.regularMarketPrice ?? chartMeta.regularMarketPrice ?? null,
-    expenseRatio:  q.expenseRatio             ?? null,
-    dividendYield: q.trailingAnnualDividendYield ?? null,
-    beta:          q.beta3Year               ?? null,
-    inceptionDate: q.fundInceptionDate != null
-      ? new Date(q.fundInceptionDate * 1000).toISOString().split('T')[0]
-      : null,
-    description:   null,          // not available from v7 quote
-    category:      q.category    ?? null,
-    family:        q.fundFamily  ?? null,
-    week52High:    q.fiftyTwoWeekHigh  ?? null,
-    week52Low:     q.fiftyTwoWeekLow   ?? null,
-    volume:        q.regularMarketVolume ?? null,
-    avgVolume:     q.averageVolume       ?? null,
+    aum,
+    nav:           price,        // Stooq close ≈ NAV for ETFs
+    expenseRatio,
+    dividendYield: null,         // not available from Stooq
+    beta:          null,
+    inceptionDate,
+    description:   null,
+    category,
+    family,
+    week52High,
+    week52Low,
+    volume,
+    avgVolume,
     holdings,
-    holdingsDate:  edgarResult?.asOfDate ?? null,
+    holdingsDate:   edgarResult?.asOfDate ?? null,
     holdingsSource: edgarResult?.source ?? 'unavailable',
-    sectors,
+    sectors:        [],          // not available without Yahoo Finance quoteSummary
     performance,
     priceHistory,
   });

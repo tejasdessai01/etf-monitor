@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Award } from 'lucide-react';
 import { CATEGORY_COLORS } from '@/lib/etf-data';
@@ -41,12 +41,18 @@ function fmtReturn(v: number | null): string {
 
 export default function TopPerformers() {
   const router = useRouter();
+  const PAGE_SIZE = 10;
+
   const [data, setData]         = useState<Entry[]>([]);
   const [loading, setLoading]   = useState(true);
   const [source, setSource]     = useState('');
   const [period, setPeriod]     = useState<Period>('ytd');
   const [category, setCategory] = useState('All');
+  const [page, setPage]         = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  const changePeriod = useCallback((p: Period) => { setPeriod(p); setPage(0); }, []);
+  const changeCategory = useCallback((c: string) => { setCategory(c); setPage(0); }, []);
 
   // Refetch whenever period or category changes — server does the filtering/sorting
   useEffect(() => {
@@ -55,7 +61,7 @@ export default function TopPerformers() {
     abortRef.current = ac;
 
     setLoading(true);
-    fetch(`/api/performers?period=${period}&category=${encodeURIComponent(category)}&limit=100`, {
+    fetch(`/api/performers?period=${period}&category=${encodeURIComponent(category)}&limit=50`, {
       signal: ac.signal,
     })
       .then((r) => r.json())
@@ -70,7 +76,10 @@ export default function TopPerformers() {
     return () => ac.abort();
   }, [period, category]);
 
-  // Data arrives pre-sorted from the server; just compute bar scale client-side
+  const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+  const pageData   = data.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Bar scale based on the full dataset so bars stay consistent across pages
   const maxAbs = useMemo(() => {
     if (!data.length) return 1;
     return Math.max(...data.map((e) => Math.abs((e[period] as number) ?? 0)), 0.01);
@@ -98,7 +107,7 @@ export default function TopPerformers() {
           {PERIODS.map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setPeriod(key)}
+              onClick={() => changePeriod(key)}
               style={{
                 fontSize: 11,
                 padding: '3px 10px',
@@ -129,7 +138,7 @@ export default function TopPerformers() {
         {CATEGORIES.map((cat) => (
           <button
             key={cat}
-            onClick={() => setCategory(cat)}
+            onClick={() => changeCategory(cat)}
             style={{
               fontSize: 11,
               padding: '3px 10px',
@@ -168,8 +177,9 @@ export default function TopPerformers() {
             No performance data available yet
           </div>
         ) : (
-          data.map((e, idx) => {
+          pageData.map((e, idx) => {
             const val     = e[period] as number;
+            const absIdx  = page * PAGE_SIZE + idx;
             const isPos   = val >= 0;
             const pct     = Math.abs(val) / maxAbs;
             const color   = isPos ? '#22c55e' : '#ef4444';
@@ -192,7 +202,7 @@ export default function TopPerformers() {
               >
                 {/* Rank */}
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', fontFamily: 'monospace' }}>
-                  {idx + 1}
+                  {absIdx + 1}
                 </span>
 
                 {/* Ticker badge */}
@@ -269,11 +279,48 @@ export default function TopPerformers() {
         )}
       </div>
 
-      {/* Footer */}
+      {/* Pagination footer */}
       {!loading && data.length > 0 && (
-        <div style={{ padding: '6px 14px', fontSize: 10, color: 'var(--text-muted)', borderTop: '1px solid var(--border)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
-          <span>Annualized for 2Y &amp; 3Y · Computed from price history · Click any row for details</span>
-          {source === 'supabase' && <span style={{ color: 'var(--text-muted)' }}>All ETFs</span>}
+        <div style={{
+          padding: '7px 14px',
+          borderTop: '1px solid var(--border)',
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, data.length)} of {data.length}
+            {source === 'supabase' ? ' ETFs' : ''}
+            {' · '}Annualized for 2Y &amp; 3Y
+          </span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              style={{
+                fontSize: 11, padding: '2px 10px', borderRadius: 4,
+                border: '1px solid var(--border)', background: 'transparent',
+                color: page === 0 ? 'var(--text-muted)' : 'var(--text-secondary)',
+                cursor: page === 0 ? 'default' : 'pointer', opacity: page === 0 ? 0.4 : 1,
+              }}
+            >← Prev</button>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', alignSelf: 'center' }}>
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page === totalPages - 1}
+              style={{
+                fontSize: 11, padding: '2px 10px', borderRadius: 4,
+                border: '1px solid var(--border)', background: 'transparent',
+                color: page === totalPages - 1 ? 'var(--text-muted)' : 'var(--text-secondary)',
+                cursor: page === totalPages - 1 ? 'default' : 'pointer',
+                opacity: page === totalPages - 1 ? 0.4 : 1,
+              }}
+            >Next →</button>
+          </div>
         </div>
       )}
     </div>
