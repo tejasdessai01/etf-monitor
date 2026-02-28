@@ -1,0 +1,56 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/refresh-prices",
+      "schedule": "30 11 * * 1-5"
+    },
+    {
+      "path": "/api/cron/refresh-prices",
+      "schedule": "0 21 * * 1-5"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=0&limit=200",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=200&limit=200",
+      "schedule": "5 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=400&limit=200",
+      "schedule": "10 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=600&limit=200",
+      "schedule": "15 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=800&limit=200",
+      "schedule": "20 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=1000&limit=200",
+      "schedule": "25 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=1200&limit=200",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=1400&limit=200",
+      "schedule": "35 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=1600&limit=200",
+      "schedule": "40 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=1800&limit=200",
+      "schedule": "45 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-performance?offset=2000&limit=200",
+      "schedule": "50 2 * * *"
+    }
+  ]
+}

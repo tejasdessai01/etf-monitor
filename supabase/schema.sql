@@ -56,6 +56,19 @@ CREATE INDEX IF NOT EXISTS idx_etfs_issuer      ON etfs(issuer);
 CREATE INDEX IF NOT EXISTS idx_aum_history_date ON aum_history(date);
 CREATE INDEX IF NOT EXISTS idx_holdings_etf     ON holdings(etf_ticker, as_of_date);
 
+-- ── Performance return columns (migration — run once after initial schema) ───
+-- Run this block if upgrading an existing DB that lacks these columns:
+ALTER TABLE etfs ADD COLUMN IF NOT EXISTS ytd_return        NUMERIC(10, 6); -- e.g. 0.153 = 15.3%
+ALTER TABLE etfs ADD COLUMN IF NOT EXISTS one_year_return   NUMERIC(10, 6);
+ALTER TABLE etfs ADD COLUMN IF NOT EXISTS two_year_return   NUMERIC(10, 6); -- annualized
+ALTER TABLE etfs ADD COLUMN IF NOT EXISTS three_year_return NUMERIC(10, 6); -- annualized
+ALTER TABLE etfs ADD COLUMN IF NOT EXISTS perf_updated_at   TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_etfs_ytd_return        ON etfs(ytd_return DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_etfs_one_year_return   ON etfs(one_year_return DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_etfs_two_year_return   ON etfs(two_year_return DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_etfs_three_year_return ON etfs(three_year_return DESC NULLS LAST);
+
 -- ── Row-level security (enable if exposing anon key publicly) ───────────────
 -- All tables are read-only from the anon key:
 ALTER TABLE etfs         ENABLE ROW LEVEL SECURITY;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Award } from 'lucide-react';
 import { CATEGORY_COLORS } from '@/lib/etf-data';
@@ -18,10 +18,10 @@ interface Entry {
 type Period = 'ytd' | 'oneYear' | 'twoYear' | 'threeYear';
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'ytd',       label: 'YTD'   },
-  { key: 'oneYear',   label: '1Y'    },
-  { key: 'twoYear',   label: '2Y'    },
-  { key: 'threeYear', label: '3Y'    },
+  { key: 'ytd',       label: 'YTD'  },
+  { key: 'oneYear',   label: '1Y'   },
+  { key: 'twoYear',   label: '2Y'   },
+  { key: 'threeYear', label: '3Y'   },
 ];
 
 const CATEGORIES = ['All', 'US Equity', 'Fixed Income', 'International', 'Sector', 'Thematic'];
@@ -41,30 +41,40 @@ function fmtReturn(v: number | null): string {
 
 export default function TopPerformers() {
   const router = useRouter();
-  const [data, setData]       = useState<Entry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [period, setPeriod]   = useState<Period>('ytd');
+  const [data, setData]         = useState<Entry[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [source, setSource]     = useState('');
+  const [period, setPeriod]     = useState<Period>('ytd');
   const [category, setCategory] = useState('All');
+  const abortRef = useRef<AbortController | null>(null);
 
+  // Refetch whenever period or category changes — server does the filtering/sorting
   useEffect(() => {
-    fetch('/api/performers')
-      .then(r => r.json())
-      .then(json => { setData(json.data ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
 
-  const ranked = useMemo(() => {
-    const filtered = category === 'All' ? data : data.filter(e => e.category === category);
-    return [...filtered]
-      .filter(e => e[period] != null)
-      .sort((a, b) => (b[period] as number) - (a[period] as number));
-  }, [data, period, category]);
+    setLoading(true);
+    fetch(`/api/performers?period=${period}&category=${encodeURIComponent(category)}&limit=100`, {
+      signal: ac.signal,
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (ac.signal.aborted) return;
+        setData(json.data ?? []);
+        setSource(json.source ?? '');
+        setLoading(false);
+      })
+      .catch(() => { if (!ac.signal.aborted) setLoading(false); });
 
-  // Max abs value for bar scaling
+    return () => ac.abort();
+  }, [period, category]);
+
+  // Data arrives pre-sorted from the server; just compute bar scale client-side
   const maxAbs = useMemo(() => {
-    if (!ranked.length) return 1;
-    return Math.max(...ranked.map(e => Math.abs(e[period] as number)), 0.01);
-  }, [ranked, period]);
+    if (!data.length) return 1;
+    return Math.max(...data.map((e) => Math.abs((e[period] as number) ?? 0)), 0.01);
+  }, [data, period]);
 
   return (
     <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -76,6 +86,11 @@ export default function TopPerformers() {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
             Top Performing ETFs
           </span>
+          {!loading && data.length > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--border)', padding: '1px 6px', borderRadius: 10 }}>
+              {data.length}
+            </span>
+          )}
         </div>
 
         {/* Period tabs */}
@@ -111,7 +126,7 @@ export default function TopPerformers() {
         scrollbarWidth: 'none',
         flexShrink: 0,
       }}>
-        {CATEGORIES.map(cat => (
+        {CATEGORIES.map((cat) => (
           <button
             key={cat}
             onClick={() => setCategory(cat)}
@@ -148,16 +163,16 @@ export default function TopPerformers() {
               <div className="skeleton" style={{ width: 44, height: 10, borderRadius: 3 }} />
             </div>
           ))
-        ) : ranked.length === 0 ? (
+        ) : data.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
-            No data available
+            No performance data available yet
           </div>
         ) : (
-          ranked.map((e, idx) => {
-            const val = e[period] as number;
-            const isPos = val >= 0;
-            const pct = Math.abs(val) / maxAbs;
-            const color = isPos ? '#22c55e' : '#ef4444';
+          data.map((e, idx) => {
+            const val     = e[period] as number;
+            const isPos   = val >= 0;
+            const pct     = Math.abs(val) / maxAbs;
+            const color   = isPos ? '#22c55e' : '#ef4444';
             const catColor = CATEGORY_COLORS[e.category] ?? '#64748b';
 
             return (
@@ -234,7 +249,6 @@ export default function TopPerformers() {
                     background: color,
                     borderRadius: 3,
                   }} />
-                  {/* Center line */}
                   <div style={{ position: 'absolute', top: 0, left: '50%', width: 1, height: '100%', background: 'var(--border-bright)' }} />
                 </div>
 
@@ -255,10 +269,11 @@ export default function TopPerformers() {
         )}
       </div>
 
-      {/* Footer note */}
-      {!loading && ranked.length > 0 && (
-        <div style={{ padding: '6px 14px', fontSize: 10, color: 'var(--text-muted)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-          Annualized for 2Y & 3Y · Computed from price history · Click any row for details
+      {/* Footer */}
+      {!loading && data.length > 0 && (
+        <div style={{ padding: '6px 14px', fontSize: 10, color: 'var(--text-muted)', borderTop: '1px solid var(--border)', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
+          <span>Annualized for 2Y &amp; 3Y · Computed from price history · Click any row for details</span>
+          {source === 'supabase' && <span style={{ color: 'var(--text-muted)' }}>All ETFs</span>}
         </div>
       )}
     </div>

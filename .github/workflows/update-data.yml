@@ -14,8 +14,9 @@ on:
         default: 'refresh-prices'
         type: choice
         options:
-          - refresh-prices   # call Vercel endpoint (recommended — works reliably)
-          - import-etfs      # seed ETF registry from SEC EDGAR (one-time setup)
+          - refresh-prices        # call Vercel endpoint (recommended — works reliably)
+          - refresh-performance   # populate YTD/1Y/2Y/3Y returns for all ETFs
+          - import-etfs           # seed ETF registry from SEC EDGAR (one-time setup)
 
 jobs:
   # ── Seed / re-import ETF registry from SEC EDGAR ────────────────────────────
@@ -58,6 +59,37 @@ jobs:
           echo "HTTP $HTTP"
           cat /tmp/resp.json
           if [ "$HTTP" != "200" ]; then exit 1; fi
+
+  # ── Refresh performance returns (YTD / 1Y / 2Y / 3Y) via Stooq ─────────────
+  # Runs via vercel.json cron (daily at 02:xx UTC) and on manual dispatch.
+  # Loops over all ETFs in chunks of 200 until hasMore=false.
+  refresh-performance:
+    name: Refresh Performance Returns
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'refresh-performance'
+    steps:
+      - name: Backfill all ETF performance data via Vercel
+        run: |
+          OFFSET=0
+          LIMIT=200
+          while true; do
+            echo "Processing offset=$OFFSET ..."
+            HTTP=$(curl -sL -o /tmp/perf_resp.json -w "%{http_code}" \
+              -X POST "${{ vars.VERCEL_APP_URL }}/api/cron/refresh-performance?offset=$OFFSET&limit=$LIMIT" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              --max-time 90)
+            echo "HTTP $HTTP  $(cat /tmp/perf_resp.json)"
+            if [ "$HTTP" != "200" ]; then
+              echo "Request failed"; exit 1
+            fi
+            HAS_MORE=$(python3 -c "import json,sys; print(json.load(open('/tmp/perf_resp.json')).get('hasMore','false'))" 2>/dev/null)
+            if [ "$HAS_MORE" != "True" ] && [ "$HAS_MORE" != "true" ]; then
+              echo "No more ETFs — done."
+              break
+            fi
+            OFFSET=$((OFFSET + LIMIT))
+            sleep 5
+          done
 
   # ── Refresh NPORT holdings ────────────────────────────────────────────────────
   # Morning run only — holdings change less frequently than prices.
