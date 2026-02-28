@@ -76,8 +76,16 @@ export async function GET(request: Request) {
         changePct:     row.change_pct ?? undefined,
       }));
 
-      // Enrich top 100 with live Yahoo Finance prices
-      const topTickers = etfs.slice(0, 100).map((e) => e.ticker);
+      // Always enrich the known top ETFs by ticker, not by DB position.
+      // If their DB AUM is stale/null they'd be buried in the sorted array and
+      // never reach the top-100 slice, so we pin them at the front of the enrich list.
+      const PRIORITY = [
+        'SPY','IVV','VOO','VTI','QQQ','BND','AGG','IEFA','VEA','VWO',
+        'GLD','IBIT','TLT','IWM','SCHD','XLK','VUG','VTV','VCIT','EFA',
+      ];
+      const dbTop     = etfs.slice(0, 80).map((e) => e.ticker);
+      const topTickers = [...new Set([...PRIORITY, ...dbTop])].slice(0, 100);
+
       const liveChunks: string[][] = [];
       for (let i = 0; i < topTickers.length; i += 20) liveChunks.push(topTickers.slice(i, i + 20));
       const quoteMaps = await Promise.all(liveChunks.map(fetchYahooQuotes));
@@ -92,6 +100,10 @@ export async function GET(request: Request) {
         etf.volume    = q.regularMarketVolume;
         if (q.marketCap && q.marketCap > 1e8) etf.aum = q.marketCap;
       }
+
+      // Re-sort after live AUM updates so the response order is correct
+      // (client also sorts, but this makes SSR / initial renders right too).
+      etfs.sort((a, b) => b.aum - a.aum);
 
       return NextResponse.json({
         data: etfs,

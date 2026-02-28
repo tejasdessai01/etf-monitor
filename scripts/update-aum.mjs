@@ -168,9 +168,18 @@ async function main() {
     const price = q.regularMarketPrice ?? null;
 
     if (price) {
-      // Include name so the upsert can INSERT new rows (name is NOT NULL in etfs table).
-      // onConflict:'ticker' means existing rows get their name preserved on conflict.
-      etfRows.push({ ticker, name: q.shortName || ticker, aum, price, change_pct: q.regularMarketChangePercent ?? null, updated_at: new Date().toISOString() });
+      // Only include `aum` in the upsert when Yahoo actually returned a value.
+      // Omitting it prevents clobbering a correctly-seeded DB AUM with null when
+      // Yahoo Finance doesn't return marketCap (e.g. rate-limit or field missing).
+      const row = {
+        ticker,
+        name:       q.shortName || ticker,
+        price,
+        change_pct: q.regularMarketChangePercent ?? null,
+        updated_at: new Date().toISOString(),
+      };
+      if (aum !== null) row.aum = aum;
+      etfRows.push(row);
       if (aum) historyRows.push({ ticker, date: today, aum, price });
     }
     await sleep(DELAY);
