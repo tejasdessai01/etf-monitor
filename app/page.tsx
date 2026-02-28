@@ -5,6 +5,7 @@ import ETFTable from '@/components/ETFTable';
 import FilingsPanel from '@/components/FilingsPanel';
 import NewsPanel from '@/components/NewsPanel';
 import TopMovers from '@/components/TopMovers';
+import TopPerformers from '@/components/TopPerformers';
 import NewLaunches from '@/components/NewLaunches';
 import IssuerSnapshot from '@/components/IssuerSnapshot';
 import { SEED_ETFS } from '@/lib/etf-data';
@@ -18,6 +19,13 @@ export default function DashboardPage() {
       <StatsBar totalAUM={totalAUM} />
 
       <main id="overview" className="dashboard-grid">
+
+        {/* ── Row 0: Top Performers (full-width) ────────────────────────── */}
+        <div className="dashboard-performers">
+          <Suspense fallback={<PanelSkeleton height={360} />}>
+            <TopPerformers />
+          </Suspense>
+        </div>
 
         {/* ── Row 1 left: ETF Table ─────────────────────────────────────── */}
         <div className="dashboard-etf-table">
@@ -56,7 +64,6 @@ export default function DashboardPage() {
             <NewsPanel />
           </Suspense>
         </div>
-
 
       </main>
 

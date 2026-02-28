@@ -120,6 +120,12 @@ body {
   overflow: visible;
 }
 
+/* Row 0: Top Performers — full-width span */
+.dashboard-performers {
+  grid-column: 1 / -1;
+  min-height: 340px;
+}
+
 /* Row 1 left */
 .dashboard-etf-table {
   height: 560px;
@@ -174,6 +180,12 @@ body {
     padding: 8px;
     gap: 8px;
   }
+
+  /* Performers panel: let it size naturally on mobile */
+  .dashboard-performers { min-height: 300px; }
+  /* Performers row: hide bar column, tighten category badge */
+  .perf-row-grid { grid-template-columns: 18px 44px 1fr auto 52px !important; }
+  .perf-bar-col  { display: none !important; }
 
   /* ETF table — keeps a fixed height since it has 4700 rows with pagination */
   .dashboard-etf-table { height: 460px; }
