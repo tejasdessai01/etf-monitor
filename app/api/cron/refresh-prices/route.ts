@@ -101,17 +101,16 @@ export async function POST(req: Request) {
     const q = quoteMap[ticker] as { regularMarketPrice?: number; regularMarketChangePercent?: number; marketCap?: number; shortName?: string } | undefined;
     if (!q) continue;
     const price = q.regularMarketPrice;
-    const aum   = q.marketCap && q.marketCap > 1e8 ? q.marketCap : null;
     if (!price) continue;
+    // NOTE: Do NOT write marketCap as aum — Yahoo Finance's marketCap for ETNs
+    // is the issuer's company market cap, not the fund's AUM. AUM is managed
+    // separately via the import-etfs script and SEED_ETFS seed data.
     etfRows.push({
       ticker,
-      name:       q.shortName || ticker,
       price,
-      aum,
       change_pct: q.regularMarketChangePercent ?? null,
       updated_at: new Date().toISOString(),
     });
-    if (aum) historyRows.push({ ticker, date: today, aum, price });
   }
 
   // ── Persist ───────────────────────────────────────────────────────────────
