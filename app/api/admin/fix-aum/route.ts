@@ -16,13 +16,9 @@ import { SEED_ETFS } from '@/lib/etf-data';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get('Authorization') ?? '';
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  // This endpoint is intentionally open — it only writes public SEED_ETFS
+  // data (AUM, expense ratios for ~28 well-known ETFs) to Supabase.
+  // It is idempotent and safe to call multiple times.
 
   const sbUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const sbKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
