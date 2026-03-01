@@ -10,8 +10,8 @@ export default function NewLaunches() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // N-1A = new fund registration (new ETF launch)
-    fetch('/api/filings?days=90&form=N-1A')
+    // N-1A = new fund registration; N-1A/A = amendment to existing registration
+    fetch('/api/filings?days=180&form=N-1A')
       .then(r => r.json())
       .then(json => {
         setLaunches((json.data ?? []).slice(0, 20));
@@ -29,7 +29,8 @@ export default function NewLaunches() {
           <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>Last 90 days · N-1A filings</span>
         </div>
         <span style={{ fontSize: '10px', color: '#22c55e', fontWeight: 600 }}>
-          {launches.length} found
+          {launches.filter(f => f.formType === 'N-1A').length} new ·{' '}
+          {launches.filter(f => f.formType !== 'N-1A').length} amended
         </span>
       </div>
 
@@ -71,12 +72,12 @@ export default function NewLaunches() {
                       fontSize: '8px',
                       padding: '1px 5px',
                       borderRadius: '3px',
-                      background: 'rgba(34,197,94,0.12)',
-                      color: '#22c55e',
+                      background: f.formType === 'N-1A' ? 'rgba(34,197,94,0.12)' : 'rgba(59,130,246,0.12)',
+                      color: f.formType === 'N-1A' ? '#22c55e' : '#3b82f6',
                       fontWeight: 700,
                       letterSpacing: '0.5px',
                     }}>
-                      N-1A FILING
+                      {f.formType === 'N-1A' ? 'NEW FUND' : 'AMENDMENT'}
                     </span>
                   </div>
                   <div style={{

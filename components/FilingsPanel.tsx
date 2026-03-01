@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FileText, ExternalLink, RefreshCw } from 'lucide-react';
+import { FileText, ExternalLink, RefreshCw, Sparkles } from 'lucide-react';
 import { fmtRelative, fmtDate } from '@/lib/format';
 import type { Filing } from '@/types';
 
@@ -23,6 +23,26 @@ export default function FilingsPanel() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'N-1A' | '485BPOS'>('all');
   const [lastUpdated, setLastUpdated] = useState('');
+  const [summaries, setSummaries] = useState<Record<string, string>>({});
+  const [loadingSummary, setLoadingSummary] = useState<Record<string, boolean>>({});
+
+  async function summarize(f: Filing) {
+    if (summaries[f.id]) return; // already fetched
+    setLoadingSummary(s => ({ ...s, [f.id]: true }));
+    try {
+      const res = await fetch('/api/ai-summary', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ formType: f.formType, entityName: f.entityName, description: f.description }),
+      });
+      const json = await res.json();
+      setSummaries(s => ({ ...s, [f.id]: json.summary ?? json.error ?? 'No summary available.' }));
+    } catch {
+      setSummaries(s => ({ ...s, [f.id]: 'Failed to generate summary.' }));
+    } finally {
+      setLoadingSummary(s => ({ ...s, [f.id]: false }));
+    }
+  }
 
   function load() {
     setLoading(true);
@@ -156,6 +176,21 @@ export default function FilingsPanel() {
                       }}>
                         {f.description}
                       </div>
+                    )}
+                    {summaries[f.id] && (
+                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '5px', lineHeight: 1.5, background: 'rgba(168,85,247,0.06)', borderLeft: '2px solid rgba(168,85,247,0.4)', paddingLeft: '7px', borderRadius: '0 4px 4px 0' }}>
+                        {summaries[f.id]}
+                      </div>
+                    )}
+                    {!summaries[f.id] && (
+                      <button
+                        onClick={e => { e.stopPropagation(); summarize(f); }}
+                        disabled={loadingSummary[f.id]}
+                        style={{ marginTop: '5px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a855f7', background: 'rgba(168,85,247,0.08)', border: 'none', borderRadius: '4px', padding: '2px 7px', cursor: loadingSummary[f.id] ? 'default' : 'pointer' }}
+                      >
+                        <Sparkles size={9} />
+                        {loadingSummary[f.id] ? 'Summarizing…' : 'AI Summary'}
+                      </button>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>

@@ -98,7 +98,8 @@ export async function GET(request: Request) {
         etf.change    = q.regularMarketChange;
         etf.changePct = q.regularMarketChangePercent ?? etf.changePct;
         etf.volume    = q.regularMarketVolume;
-        if (q.marketCap && q.marketCap > 1e8) etf.aum = q.marketCap;
+        // NOTE: do NOT overwrite AUM from marketCap — Yahoo's marketCap is
+        // unreliable for ETFs/ETNs (sometimes returns issuer market cap)
       }
 
       // Re-sort after live AUM updates so the response order is correct

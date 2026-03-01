@@ -121,7 +121,7 @@ async function fetchFilings(form: string, days: number): Promise<Filing[]> {
         accessionNo: adsh,
         url,
         description,
-        isNew: form === 'N-1A',
+        isNew: formType === 'N-1A',
       };
     });
   } catch {

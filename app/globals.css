@@ -230,6 +230,18 @@ body {
   .stats-bar-row { padding: 0 12px; }
 }
 
+/* ── Header search — hide on narrow mobile ───────────────────────────────── */
+@media (max-width: 540px) {
+  .header-search-wrap { display: none !important; }
+}
+
+/* ── Screener layout ─────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .screener-layout { flex-direction: column !important; }
+  .screener-filters { width: 100% !important; position: static !important; }
+  .screener-toggle-btn { display: flex !important; }
+}
+
 /* ── Global iOS tap highlight ─────────────────────────────────────────────── */
 a, button { -webkit-tap-highlight-color: transparent; }
 
