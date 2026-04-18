@@ -111,102 +111,53 @@ body {
 /* ── Dashboard grid — desktop default ───────────────────────────────────── */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
   padding: 12px;
   max-width: 1600px;
   margin: 0 auto;
-  /* Critical: the grid must not clip overflow */
   overflow: visible;
 }
 
-/* Row 0: Top Performers — full-width span */
-.dashboard-performers {
-  grid-column: 1 / -1;
-  min-height: 340px;
+/* Hero row: SEC Filings + New ETF Launches — primary intelligence */
+.dashboard-filings-hero,
+.dashboard-launches-hero {
+  height: 620px;
+  min-height: 0;
 }
 
-/* Row 1 left */
-.dashboard-etf-table {
-  height: 560px;
-  /* inner panel uses overflow:auto for the table rows */
-}
-
-/* Row 1 right */
-.dashboard-right-col {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  height: 560px;
-}
-.dashboard-movers  { height: 260px; flex-shrink: 0; }
-.dashboard-filings { flex: 1 1 0; min-height: 0; }
-
-/* Row 2 left */
-.dashboard-bottom-left {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-auto-rows: 360px;
-  gap: 12px;
+/* Secondary row: Issuer snapshot + News */
+.dashboard-issuer,
+.dashboard-news {
   height: 360px;
 }
 
-/* Row 2 right — news fills the entire column */
-.dashboard-bottom-right { height: 360px; }
 
-
-/* ── Tablet (≤1100px): single column ────────────────────────────────────── */
+/* ── Tablet (≤1100px): single column, hero panels stay tall ─────────────── */
 @media (max-width: 1100px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-
-  /* Movers + Filings side-by-side */
-  .dashboard-right-col {
-    flex-direction: row;
-    height: 300px;
-  }
-  .dashboard-movers,
-  .dashboard-filings {
-    flex: 1 1 0;
-    height: 100%;
-    min-height: unset;
+  .dashboard-filings-hero,
+  .dashboard-launches-hero {
+    height: 560px;
   }
 }
 
-/* ── Mobile (≤768px): stacked, page scrolls ─────────────────────────────── */
+/* ── Mobile (≤768px): tighter spacing ───────────────────────────────────── */
 @media (max-width: 768px) {
   .dashboard-grid {
     padding: 8px;
     gap: 8px;
   }
-
-  /* Performers panel: let it size naturally on mobile */
-  .dashboard-performers { min-height: 300px; }
-  /* Performers row: hide bar column, tighten category badge */
-  .perf-row-grid { grid-template-columns: 18px 44px 1fr auto 52px !important; }
-  .perf-bar-col  { display: none !important; }
-
-  /* ETF table — keeps a fixed height since it has 4700 rows with pagination */
-  .dashboard-etf-table { height: 460px; }
-
-  /* Right column: stack vertically */
-  .dashboard-right-col {
-    flex-direction: column;
-    height: auto;
+  .dashboard-filings-hero,
+  .dashboard-launches-hero {
+    height: 480px;
   }
-  .dashboard-movers  { height: 260px; flex-shrink: 0; }
-  .dashboard-filings { flex: unset; height: 280px; min-height: unset; }
-
-  /* Bottom-left: single column */
-  .dashboard-bottom-left {
-    grid-template-columns: 1fr;
-    height: auto;
+  .dashboard-issuer,
+  .dashboard-news {
+    height: 320px;
   }
-  .dashboard-bottom-left > * { height: 280px; }
-
-  /* Bottom-right: news panel */
-  .dashboard-bottom-right { height: 320px; }
 }
 
 /* ── ETF Table: hide columns on narrow screens ───────────────────────────── */

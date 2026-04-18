@@ -1,11 +1,8 @@
 import { Suspense } from 'react';
 import Header from '@/components/Header';
 import StatsBar from '@/components/StatsBar';
-import ETFTable from '@/components/ETFTable';
 import FilingsPanel from '@/components/FilingsPanel';
 import NewsPanel from '@/components/NewsPanel';
-import TopMovers from '@/components/TopMovers';
-import TopPerformers from '@/components/TopPerformers';
 import NewLaunches from '@/components/NewLaunches';
 import IssuerSnapshot from '@/components/IssuerSnapshot';
 import { SEED_ETFS } from '@/lib/etf-data';
@@ -20,46 +17,25 @@ export default function DashboardPage() {
 
       <main id="overview" className="dashboard-grid">
 
-        {/* ── Row 0: Top Performers (full-width) ────────────────────────── */}
-        <div className="dashboard-performers">
-          <Suspense fallback={<PanelSkeleton height={360} />}>
-            <TopPerformers />
+        {/* ── Hero row: SEC Filings + New ETF Launches ─────────────────── */}
+        <div className="dashboard-filings-hero">
+          <Suspense fallback={<PanelSkeleton height={620} />}>
+            <FilingsPanel />
           </Suspense>
         </div>
-
-        {/* ── Row 1 left: ETF Table ─────────────────────────────────────── */}
-        <div className="dashboard-etf-table">
-          <Suspense fallback={<PanelSkeleton height={560} />}>
-            <ETFTable />
-          </Suspense>
-        </div>
-
-        {/* ── Row 1 right: Top Movers + Filings ────────────────────────── */}
-        <div className="dashboard-right-col">
-          <div className="dashboard-movers">
-            <Suspense fallback={<PanelSkeleton height={260} />}>
-              <TopMovers />
-            </Suspense>
-          </div>
-          <div className="dashboard-filings">
-            <Suspense fallback={<PanelSkeleton height={288} />}>
-              <FilingsPanel />
-            </Suspense>
-          </div>
-        </div>
-
-        {/* ── Row 2 left: New Launches + Issuer ────────────────────────── */}
-        <div className="dashboard-bottom-left">
-          <Suspense fallback={<PanelSkeleton height={360} />}>
+        <div className="dashboard-launches-hero">
+          <Suspense fallback={<PanelSkeleton height={620} />}>
             <NewLaunches />
           </Suspense>
+        </div>
+
+        {/* ── Secondary row: Issuer + News ─────────────────────────────── */}
+        <div className="dashboard-issuer">
           <Suspense fallback={<PanelSkeleton height={360} />}>
             <IssuerSnapshot />
           </Suspense>
         </div>
-
-        {/* ── Row 2 right: News (full height) ──────────────────────────── */}
-        <div className="dashboard-bottom-right">
+        <div className="dashboard-news">
           <Suspense fallback={<PanelSkeleton height={360} />}>
             <NewsPanel />
           </Suspense>
