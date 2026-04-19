@@ -1,105 +1,67 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { fmtAum, fmtPct, chgClass } from '@/lib/format';
-import type { ETF } from '@/types';
+import type { Filing } from '@/types';
 
-interface TickerItem {
-  ticker: string;
-  price?: number;
-  changePct?: number;
+interface Props {
+  totalAUM?: number;  // kept for backwards-compat with existing imports; unused here
 }
 
-export default function StatsBar({ totalAUM }: { totalAUM: number }) {
-  const [tickers, setTickers] = useState<TickerItem[]>([]);
-  const [liveTotal, setLiveTotal] = useState<number | null>(null);
+interface Stats {
+  weekFilings: number | null;
+  newFundsThisMonth: number | null;
+  activeIssuers: number | null;
+  universe: number | null;
+}
+
+function daysAgo(iso: string): number {
+  const now = Date.now();
+  const then = new Date(iso).getTime();
+  return (now - then) / 86400000;
+}
+
+export default function StatsBar(_props: Props) {
+  const [stats, setStats] = useState<Stats>({
+    weekFilings: null, newFundsThisMonth: null, activeIssuers: null, universe: null,
+  });
 
   useEffect(() => {
-    fetch('/api/etfs')
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.total) setLiveTotal(json.total as number);
-        const items: TickerItem[] = (json.data as ETF[])
-          .filter((e) => e.price !== undefined)
-          .slice(0, 20)
-          .map((e) => ({ ticker: e.ticker, price: e.price, changePct: e.changePct }));
-        setTickers(items);
-      })
-      .catch(() => {});
+    // Derive intelligence KPIs from the filings feed (no extra endpoint needed)
+    Promise.all([
+      fetch('/api/filings?days=30').then(r => r.json()).catch(() => null),
+      fetch('/api/etfs').then(r => r.json()).catch(() => null),
+    ]).then(([filingsJson, etfsJson]) => {
+      const filings: Filing[] = filingsJson?.data ?? [];
+      const weekFilings = filings.filter(f => daysAgo(f.filedAt) <= 7).length;
+      const newFundsThisMonth = filings.filter(
+        f => f.formType === 'N-1A' && daysAgo(f.filedAt) <= 30,
+      ).length;
+      const activeIssuers = new Set(
+        filings.filter(f => daysAgo(f.filedAt) <= 7).map(f => f.entityName),
+      ).size;
+      const universe = etfsJson?.total ?? null;
+      setStats({ weekFilings, newFundsThisMonth, activeIssuers, universe });
+    });
   }, []);
 
-  const duplicated = [...tickers, ...tickers]; // seamless loop
+  const tiles = [
+    { label: 'Filings this week',   value: stats.weekFilings,       delta: 'SEC EDGAR · 7 days' },
+    { label: 'New funds · 30 days', value: stats.newFundsThisMonth, delta: 'N-1A registrations' },
+    { label: 'Active issuers',      value: stats.activeIssuers,     delta: 'Filed in last 7 days' },
+    { label: 'US ETF universe',     value: stats.universe,          delta: 'Tracked funds' },
+  ];
 
   return (
-    <div
-      style={{
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-panel)',
-      }}
-    >
-      {/* Stats row */}
-      <div className="stats-bar-row">
-        {[
-          { label: 'US ETF Universe', value: liveTotal ? liveTotal.toLocaleString() : '3,400+' },
-          { label: 'Total AUM',       value: fmtAum(totalAUM) },
-          { label: 'Data Sources',    value: 'SEC EDGAR + Yahoo Finance' },
-          { label: 'Price Refresh',   value: 'Every 5 min' },
-        ].map(({ label, value }) => (
-          <div
-            key={label}
-            style={{
-              padding: '10px 24px 10px 0',
-              marginRight: '24px',
-              borderRight: '1px solid var(--border)',
-              minWidth: '140px',
-            }}
-          >
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>
-              {label}
-            </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              {value}
-            </div>
+    <div className="kpi-row">
+      {tiles.map(t => (
+        <div key={t.label} className="kpi-tile">
+          <div className="kpi-label">{t.label}</div>
+          <div className="kpi-value">
+            {t.value == null ? '—' : t.value.toLocaleString()}
           </div>
-        ))}
-      </div>
-
-      {/* Live ticker strip */}
-      <div style={{ overflow: 'hidden', padding: '8px 0', height: '36px' }}>
-        {tickers.length > 0 ? (
-          <div className="ticker-track" style={{ gap: '0' }}>
-            {duplicated.map((item, i) => (
-              <span
-                key={i}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 20px',
-                  borderRight: '1px solid var(--border)',
-                  fontSize: '12px',
-                }}
-              >
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-                  {item.ticker}
-                </span>
-                {item.price !== undefined && (
-                  <span style={{ color: 'var(--text-secondary)' }}>${item.price.toFixed(2)}</span>
-                )}
-                {item.changePct !== undefined && (
-                  <span className={chgClass(item.changePct)} style={{ fontWeight: 600 }}>
-                    {fmtPct(item.changePct)}
-                  </span>
-                )}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <div style={{ padding: '0 20px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Loading live prices…
-          </div>
-        )}
-      </div>
+          <div className="kpi-delta">{t.delta}</div>
+        </div>
+      ))}
     </div>
   );
 }

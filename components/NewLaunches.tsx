@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Rocket, ExternalLink } from 'lucide-react';
-import { fmtDate, fmtRelative } from '@/lib/format';
+import { fmtDate } from '@/lib/format';
+import IssuerAvatar from './IssuerAvatar';
 import type { Filing } from '@/types';
 
 export default function NewLaunches() {
@@ -10,101 +10,69 @@ export default function NewLaunches() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/filings?days=180&form=N-1A')
+    fetch('/api/filings?days=90&form=N-1A')
       .then(r => r.json())
       .then(json => {
-        setLaunches((json.data ?? []).slice(0, 20));
+        setLaunches((json.data ?? []).filter((f: Filing) => f.formType === 'N-1A').slice(0, 8));
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
 
-  const newCount = launches.filter(f => f.formType === 'N-1A').length;
-  const amendedCount = launches.filter(f => f.formType !== 'N-1A').length;
-
   return (
-    <div className="panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="panel-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Rocket size={14} color="var(--text-secondary)" />
-          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>New ETF Launches</span>
-          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>N-1A · 180d</span>
+        <div>
+          <div className="panel-title">New launches</div>
+          <div className="panel-subtitle">N-1A · 90 days</div>
         </div>
-        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)' }}>
-          {newCount} new · {amendedCount} amended
-        </span>
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1, padding: '6px 6px' }}>
+      <div style={{ padding: '6px 8px' }}>
         {loading
-          ? Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} style={{ padding: '12px 18px' }}>
-                <div className="skeleton" style={{ height: '11px', width: '75%', marginBottom: '6px' }} />
-                <div className="skeleton" style={{ height: '9px', width: '35%' }} />
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ padding: '10px 12px', display: 'flex', gap: 10 }}>
+                <div className="skeleton" style={{ width: 24, height: 24, borderRadius: '50%' }} />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton" style={{ height: 10, width: '70%', marginBottom: 5 }} />
+                  <div className="skeleton" style={{ height: 9, width: '40%' }} />
+                </div>
               </div>
             ))
           : launches.length === 0
           ? (
-            <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
-              No new fund registrations found.<br />
-              <a href="https://efts.sec.gov/LATEST/search-index?forms=N-1A" target="_blank" rel="noopener noreferrer"
-                 style={{ color: 'var(--accent)', fontSize: 'var(--fs-xs)' }}>
-                Search SEC EDGAR directly →
-              </a>
+            <div style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-subtle)', fontSize: 'var(--fs-sm)' }}>
+              No new registrations found.
             </div>
           )
-          : launches.map((f) => (
-              <div
+          : launches.map(f => (
+              <a
                 key={f.id}
+                href={f.url}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="list-row"
-                onClick={() => window.open(f.url, '_blank')}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}
+                style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}
               >
+                <IssuerAvatar name={f.entityName} size="sm" />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ marginBottom: '4px' }}>
-                    <span className={f.formType === 'N-1A' ? 'pill pill-positive' : 'pill'}>
-                      {f.formType === 'N-1A' ? 'New fund' : 'Amendment'}
-                    </span>
-                  </div>
                   <div style={{
                     fontSize: 'var(--fs-sm)',
-                    color: 'var(--text-primary)',
                     fontWeight: 500,
+                    color: 'var(--text)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                   }}>
                     {f.entityName}
                   </div>
-                  {f.description && (
-                    <div style={{
-                      fontSize: 'var(--fs-xs)',
-                      color: 'var(--text-secondary)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      marginTop: '2px',
-                    }}>
-                      {f.description}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '3px' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', marginTop: 2 }}>
                     Filed {fmtDate(f.filedAt)}
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
-                  <ExternalLink size={11} color="var(--text-muted)" />
-                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                    {fmtRelative(f.filedAt)}
-                  </span>
-                </div>
-              </div>
+              </a>
             ))
         }
-      </div>
-
-      <div style={{ padding: '8px 18px', borderTop: '1px solid var(--border)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-        SEC EDGAR · N-1A registrations
       </div>
     </div>
   );
