@@ -10,7 +10,6 @@ export default function NewLaunches() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // N-1A = new fund registration; N-1A/A = amendment to existing registration
     fetch('/api/filings?days=180&form=N-1A')
       .then(r => r.json())
       .then(json => {
@@ -20,33 +19,36 @@ export default function NewLaunches() {
       .catch(() => setLoading(false));
   }, []);
 
+  const newCount = launches.filter(f => f.formType === 'N-1A').length;
+  const amendedCount = launches.filter(f => f.formType !== 'N-1A').length;
+
   return (
     <div className="panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="panel-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Rocket size={14} color="#22c55e" />
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>New ETF Launches</span>
-          <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>Last 90 days · N-1A filings</span>
+          <Rocket size={14} color="var(--text-secondary)" />
+          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>New ETF Launches</span>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>N-1A · 180d</span>
         </div>
-        <span style={{ fontSize: '10px', color: '#22c55e', fontWeight: 600 }}>
-          {launches.filter(f => f.formType === 'N-1A').length} new ·{' '}
-          {launches.filter(f => f.formType !== 'N-1A').length} amended
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)' }}>
+          {newCount} new · {amendedCount} amended
         </span>
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1 }}>
+      <div style={{ overflowY: 'auto', flex: 1, padding: '6px 6px' }}>
         {loading
           ? Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                <div className="skeleton" style={{ height: '11px', width: '75%', marginBottom: '5px' }} />
+              <div key={i} style={{ padding: '12px 18px' }}>
+                <div className="skeleton" style={{ height: '11px', width: '75%', marginBottom: '6px' }} />
                 <div className="skeleton" style={{ height: '9px', width: '35%' }} />
               </div>
             ))
           : launches.length === 0
           ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+            <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
               No new fund registrations found.<br />
-              <a href="https://efts.sec.gov/LATEST/search-index?forms=N-1A" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: '11px' }}>
+              <a href="https://efts.sec.gov/LATEST/search-index?forms=N-1A" target="_blank" rel="noopener noreferrer"
+                 style={{ color: 'var(--accent)', fontSize: 'var(--fs-xs)' }}>
                 Search SEC EDGAR directly →
               </a>
             </div>
@@ -54,34 +56,18 @@ export default function NewLaunches() {
           : launches.map((f) => (
               <div
                 key={f.id}
-                className="table-row"
-                style={{
-                  padding: '9px 14px',
-                  borderBottom: '1px solid var(--border)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  gap: '8px',
-                }}
+                className="list-row"
                 onClick={() => window.open(f.url, '_blank')}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' }}>
-                    <span style={{
-                      fontSize: '8px',
-                      padding: '1px 5px',
-                      borderRadius: '3px',
-                      background: f.formType === 'N-1A' ? 'rgba(34,197,94,0.12)' : 'rgba(59,130,246,0.12)',
-                      color: f.formType === 'N-1A' ? '#22c55e' : '#3b82f6',
-                      fontWeight: 700,
-                      letterSpacing: '0.5px',
-                    }}>
-                      {f.formType === 'N-1A' ? 'NEW FUND' : 'AMENDMENT'}
+                  <div style={{ marginBottom: '4px' }}>
+                    <span className={f.formType === 'N-1A' ? 'pill pill-positive' : 'pill'}>
+                      {f.formType === 'N-1A' ? 'New fund' : 'Amendment'}
                     </span>
                   </div>
                   <div style={{
-                    fontSize: '12px',
+                    fontSize: 'var(--fs-sm)',
                     color: 'var(--text-primary)',
                     fontWeight: 500,
                     overflow: 'hidden',
@@ -92,23 +78,23 @@ export default function NewLaunches() {
                   </div>
                   {f.description && (
                     <div style={{
-                      fontSize: '10px',
+                      fontSize: 'var(--fs-xs)',
                       color: 'var(--text-secondary)',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      marginTop: '1px',
+                      marginTop: '2px',
                     }}>
                       {f.description}
                     </div>
                   )}
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '3px' }}>
                     Filed {fmtDate(f.filedAt)}
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
-                  <ExternalLink size={10} color="var(--text-muted)" />
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
+                  <ExternalLink size={11} color="var(--text-muted)" />
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
                     {fmtRelative(f.filedAt)}
                   </span>
                 </div>
@@ -117,8 +103,8 @@ export default function NewLaunches() {
         }
       </div>
 
-      <div style={{ padding: '6px 14px', borderTop: '1px solid var(--border)', fontSize: '10px', color: 'var(--text-muted)' }}>
-        Source: SEC EDGAR N-1A registration statements
+      <div style={{ padding: '8px 18px', borderTop: '1px solid var(--border)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+        SEC EDGAR · N-1A registrations
       </div>
     </div>
   );

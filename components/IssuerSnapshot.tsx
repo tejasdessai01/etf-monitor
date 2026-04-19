@@ -12,19 +12,6 @@ interface IssuerRow {
   marketShare: number;
 }
 
-const ISSUER_COLORS: Record<string, string> = {
-  'BlackRock':    '#3b82f6',
-  'Vanguard':     '#22c55e',
-  'State Street': '#a855f7',
-  'Invesco':      '#f97316',
-  'Schwab':       '#06b6d4',
-  'ProShares':    '#ef4444',
-  'VanEck':       '#eab308',
-  'ARK Invest':   '#ec4899',
-  'Fidelity':     '#10b981',
-  'Grayscale':    '#64748b',
-};
-
 export default function IssuerSnapshot() {
   const [etfs, setEtfs] = useState<ETF[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,52 +48,48 @@ export default function IssuerSnapshot() {
     <div className="panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="panel-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Building2 size={14} color="#06b6d4" />
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Issuers by AUM</span>
+          <Building2 size={14} color="var(--text-secondary)" />
+          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Issuers by AUM</span>
         </div>
-        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Tracked universe</span>
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>Tracked universe</span>
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1, padding: '8px 14px' }}>
+      <div style={{ overflowY: 'auto', flex: 1, padding: '12px 18px' }}>
         {loading
           ? Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} style={{ marginBottom: '12px' }}>
-                <div className="skeleton" style={{ height: '10px', width: '80px', marginBottom: '5px' }} />
+              <div key={i} style={{ marginBottom: '14px' }}>
+                <div className="skeleton" style={{ height: '10px', width: '80px', marginBottom: '6px' }} />
                 <div className="skeleton" style={{ height: '6px', width: '100%', borderRadius: '3px' }} />
               </div>
             ))
           : issuers.map((row) => {
-              const color = ISSUER_COLORS[row.issuer] ?? '#64748b';
               const pct = (row.totalAum / maxAum) * 100;
               return (
-                <div key={row.issuer} style={{ marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{
-                        width: '8px', height: '8px', borderRadius: '2px', background: color, display: 'block', flexShrink: 0,
-                      }} />
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div key={row.issuer} style={{ marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-primary)' }}>
                         {row.issuer}
                       </span>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
                         {row.etfCount} funds
                       </span>
                     </div>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                       {fmtAum(row.totalAum)}
                     </span>
                   </div>
-                  <div style={{ background: 'var(--border)', borderRadius: '3px', height: '5px', overflow: 'hidden' }}>
+                  <div style={{ background: 'var(--bg-subtle)', borderRadius: '3px', height: '4px', overflow: 'hidden' }}>
                     <div style={{
                       height: '100%',
                       width: `${pct}%`,
-                      background: color,
+                      background: 'var(--accent)',
                       borderRadius: '3px',
                       transition: 'width 0.5s ease',
                     }} />
                   </div>
-                  <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px', textAlign: 'right' }}>
-                    {(row.marketShare * 100).toFixed(1)}% market share
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '3px', textAlign: 'right' }}>
+                    {(row.marketShare * 100).toFixed(1)}% share
                   </div>
                 </div>
               );

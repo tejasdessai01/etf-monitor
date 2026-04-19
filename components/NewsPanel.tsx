@@ -20,24 +20,24 @@ export default function NewsPanel() {
     <div className="panel" id="news" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="panel-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Newspaper size={14} color="#eab308" />
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>ETF News</span>
+          <Newspaper size={14} color="var(--text-secondary)" />
+          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>ETF News</span>
         </div>
-        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Yahoo Finance · Reuters · 15m cache</span>
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>Yahoo · Reuters</span>
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1 }}>
+      <div style={{ overflowY: 'auto', flex: 1, padding: '6px 6px' }}>
         {loading
           ? Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)' }}>
+              <div key={i} style={{ padding: '12px 18px' }}>
                 <div className="skeleton" style={{ height: '12px', width: '85%', marginBottom: '6px' }} />
                 <div className="skeleton" style={{ height: '9px', width: '40%' }} />
               </div>
             ))
           : items.length === 0
           ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-              News feed unavailable. RSS sources may be temporarily unreachable.
+            <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
+              News feed unavailable.
             </div>
           )
           : items.map((item) => (
@@ -46,23 +46,16 @@ export default function NewsPanel() {
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="table-row"
-                style={{
-                  display: 'block',
-                  padding: '10px 14px',
-                  borderBottom: '1px solid var(--border)',
-                  textDecoration: 'none',
-                  cursor: 'pointer',
-                }}
+                className="list-row"
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{
-                      fontSize: '12px',
+                      fontSize: 'var(--fs-sm)',
                       color: 'var(--text-primary)',
                       fontWeight: 500,
                       lineHeight: '1.4',
-                      marginBottom: '4px',
+                      marginBottom: '5px',
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
@@ -71,16 +64,16 @@ export default function NewsPanel() {
                       {item.title}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 600 }}>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', fontWeight: 500 }}>
                         {item.source}
                       </span>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>·</span>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>·</span>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
                         {fmtRelative(item.publishedAt)}
                       </span>
                     </div>
                   </div>
-                  <ExternalLink size={10} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <ExternalLink size={11} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: '2px' }} />
                 </div>
               </a>
             ))}
