@@ -2,15 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { FileText, ExternalLink, RefreshCw, Sparkles } from 'lucide-react';
-import { fmtRelative, fmtDate } from '@/lib/format';
+import { fmtRelative } from '@/lib/format';
 import type { Filing } from '@/types';
-
-const FORM_COLORS: Record<string, string> = {
-  'N-1A':    '#3b82f6',
-  '485BPOS': '#22c55e',
-  'N-14':    '#a855f7',
-  'default': '#64748b',
-};
 
 const FORM_LABELS: Record<string, string> = {
   'N-1A':    'New Fund',
@@ -27,7 +20,7 @@ export default function FilingsPanel() {
   const [loadingSummary, setLoadingSummary] = useState<Record<string, boolean>>({});
 
   async function summarize(f: Filing) {
-    if (summaries[f.id]) return; // already fetched
+    if (summaries[f.id]) return;
     setLoadingSummary(s => ({ ...s, [f.id]: true }));
     try {
       const res = await fetch('/api/ai-summary', {
@@ -66,149 +59,131 @@ export default function FilingsPanel() {
     <div className="panel" id="filings" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="panel-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FileText size={14} color="#a855f7" />
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>SEC Filings</span>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Last 30 days</span>
+          <FileText size={14} color="var(--text-secondary)" />
+          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>SEC Filings</span>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>Last 30 days</span>
         </div>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          {(['all', 'N-1A', '485BPOS'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                fontSize: '10px',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                background: filter === f ? 'rgba(168,85,247,0.15)' : 'transparent',
-                color: filter === f ? '#a855f7' : 'var(--text-secondary)',
-                fontWeight: filter === f ? 600 : 400,
-              }}
-            >
-              {f === 'all' ? 'All' : f}
-            </button>
-          ))}
-          <button
-            onClick={load}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px' }}
-            title="Refresh"
-          >
-            <RefreshCw size={11} />
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="seg">
+            {(['all', 'N-1A', '485BPOS'] as const).map(f => (
+              <button
+                key={f}
+                className="seg-btn"
+                data-active={filter === f}
+                onClick={() => setFilter(f)}
+              >
+                {f === 'all' ? 'All' : f}
+              </button>
+            ))}
+          </div>
+          <button onClick={load} className="icon-btn" title="Refresh">
+            <RefreshCw size={12} />
           </button>
         </div>
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1, padding: '4px 0' }}>
+      <div style={{ overflowY: 'auto', flex: 1, padding: '6px 6px' }}>
         {loading ? (
           Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+            <div key={i} style={{ padding: '12px 18px' }}>
               <div className="skeleton" style={{ height: '11px', width: '70%', marginBottom: '6px' }} />
               <div className="skeleton" style={{ height: '9px', width: '40%' }} />
             </div>
           ))
         ) : displayed.length === 0 ? (
-          <div style={{ padding: '24px 14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+          <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
             No filings found. SEC EDGAR may be unavailable.
           </div>
         ) : (
-          displayed.map((f) => {
-            const color = FORM_COLORS[f.formType] ?? FORM_COLORS.default;
-            return (
-              <div
-                key={f.id}
-                className="table-row"
-                style={{
-                  padding: '9px 14px',
-                  borderBottom: '1px solid var(--border)',
-                  cursor: 'pointer',
-                }}
-                onClick={() => window.open(f.url, '_blank')}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-                      <span style={{
-                        fontSize: '9px',
-                        padding: '1px 5px',
-                        borderRadius: '3px',
-                        fontWeight: 700,
-                        background: color + '22',
-                        color: color,
-                        letterSpacing: '0.3px',
-                      }}>
-                        {FORM_LABELS[f.formType] ?? f.formType}
-                      </span>
-                      <span style={{ fontSize: '9px', fontWeight: 700, color: color, fontFamily: 'monospace' }}>
-                        {f.formType}
-                      </span>
-                      {f.isNew && (
-                        <span style={{
-                          fontSize: '8px',
-                          padding: '1px 4px',
-                          borderRadius: '3px',
-                          background: 'rgba(34,197,94,0.15)',
-                          color: '#22c55e',
-                          fontWeight: 700,
-                        }}>
-                          NEW
-                        </span>
-                      )}
-                    </div>
+          displayed.map((f) => (
+            <div
+              key={f.id}
+              className="list-row"
+              onClick={() => window.open(f.url, '_blank')}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <span className={f.formType === 'N-1A' ? 'pill pill-accent' : 'pill'}>
+                      {FORM_LABELS[f.formType] ?? f.formType}
+                    </span>
+                    {f.isNew && <span className="pill pill-positive">New</span>}
+                  </div>
+                  <div style={{
+                    fontSize: 'var(--fs-sm)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 500,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {f.entityName}
+                  </div>
+                  {f.description && (
                     <div style={{
-                      fontSize: '12px',
-                      color: 'var(--text-primary)',
-                      fontWeight: 500,
+                      fontSize: 'var(--fs-xs)',
+                      color: 'var(--text-secondary)',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
+                      marginTop: '2px',
                     }}>
-                      {f.entityName}
+                      {f.description}
                     </div>
-                    {f.description && (
-                      <div style={{
-                        fontSize: '10px',
-                        color: 'var(--text-secondary)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        marginTop: '1px',
-                      }}>
-                        {f.description}
-                      </div>
-                    )}
-                    {summaries[f.id] && (
-                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '5px', lineHeight: 1.5, background: 'rgba(168,85,247,0.06)', borderLeft: '2px solid rgba(168,85,247,0.4)', paddingLeft: '7px', borderRadius: '0 4px 4px 0' }}>
-                        {summaries[f.id]}
-                      </div>
-                    )}
-                    {!summaries[f.id] && (
-                      <button
-                        onClick={e => { e.stopPropagation(); summarize(f); }}
-                        disabled={loadingSummary[f.id]}
-                        style={{ marginTop: '5px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a855f7', background: 'rgba(168,85,247,0.08)', border: 'none', borderRadius: '4px', padding: '2px 7px', cursor: loadingSummary[f.id] ? 'default' : 'pointer' }}
-                      >
-                        <Sparkles size={9} />
-                        {loadingSummary[f.id] ? 'Summarizing…' : 'AI Summary'}
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
-                    <ExternalLink size={10} color="var(--text-muted)" />
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                      {fmtRelative(f.filedAt)}
-                    </span>
-                  </div>
+                  )}
+                  {summaries[f.id] && (
+                    <div style={{
+                      fontSize: 'var(--fs-xs)',
+                      color: 'var(--text-secondary)',
+                      marginTop: '8px',
+                      lineHeight: 1.5,
+                      background: 'var(--bg-subtle)',
+                      borderLeft: '2px solid var(--accent-border)',
+                      padding: '8px 10px',
+                      borderRadius: '0 6px 6px 0',
+                    }}>
+                      {summaries[f.id]}
+                    </div>
+                  )}
+                  {!summaries[f.id] && (
+                    <button
+                      onClick={e => { e.stopPropagation(); summarize(f); }}
+                      disabled={loadingSummary[f.id]}
+                      style={{
+                        marginTop: '6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: 'var(--fs-xs)',
+                        color: 'var(--text-muted)',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: loadingSummary[f.id] ? 'default' : 'pointer',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+                    >
+                      <Sparkles size={10} />
+                      {loadingSummary[f.id] ? 'Summarizing…' : 'AI summary'}
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
+                  <ExternalLink size={11} color="var(--text-muted)" />
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+                    {fmtRelative(f.filedAt)}
+                  </span>
                 </div>
               </div>
-            );
-          })
+            </div>
+          ))
         )}
       </div>
 
       {lastUpdated && (
-        <div style={{ padding: '6px 14px', borderTop: '1px solid var(--border)', fontSize: '10px', color: 'var(--text-muted)' }}>
-          Data from SEC EDGAR · updated {fmtRelative(lastUpdated)}
+        <div style={{ padding: '8px 18px', borderTop: '1px solid var(--border)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+          SEC EDGAR · updated {fmtRelative(lastUpdated)}
         </div>
       )}
     </div>

@@ -2,19 +2,41 @@
 
 /* ── Design tokens ───────────────────────────────────────────────────────── */
 :root {
-  --bg-primary:     #08080d;
-  --bg-panel:       #0f0f17;
-  --bg-panel-hover: #13131e;
-  --border:         #1c1c2e;
-  --border-bright:  #252538;
-  --text-primary:   #e2e8f0;
-  --text-secondary: #64748b;
-  --text-muted:     #3d4a5c;
-  --green:  #22c55e;
-  --red:    #ef4444;
-  --blue:   #3b82f6;
+  /* Surfaces — softened from near-pure-black for a modern SaaS feel */
+  --bg-primary:     #0b0c10;
+  --bg-panel:       #121419;
+  --bg-panel-hover: #171a21;
+  --bg-subtle:      #181b22;
+  --border:         #22252e;
+  --border-bright:  #2d313c;
+
+  /* Text — brighter muted tones for readability */
+  --text-primary:   #e7e9ee;
+  --text-secondary: #9aa0ac;
+  --text-muted:     #6b7280;
+
+  /* Accent — one role for interactive/brand; semantic green/red reserved for P/L */
+  --accent:         #5b8def;
+  --accent-bg:      rgba(91,141,239,0.12);
+  --accent-border:  rgba(91,141,239,0.3);
+  --green:          #22c55e;
+  --red:            #ef4444;
+
+  /* Legacy tokens (kept for compatibility with untouched components) */
+  --blue:   #5b8def;
   --yellow: #eab308;
   --purple: #a855f7;
+
+  /* Type scale */
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 22px;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
@@ -40,12 +62,11 @@ body {
 .panel {
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  /* panels must never clip the page scroll */
+  border-radius: var(--radius-lg);
   overflow: visible;
 }
 .panel-header {
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -54,6 +75,82 @@ body {
   gap: 8px;
   flex-shrink: 0;
 }
+
+/* ── List rows: whitespace instead of borders ────────────────────────────── */
+.list-row {
+  display: block;
+  padding: 12px 18px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms ease;
+}
+.list-row:hover { background: var(--bg-panel-hover); }
+
+/* ── Pills: one neutral style, one accent style ──────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.pill-accent {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+.pill-positive {
+  background: rgba(34,197,94,0.1);
+  color: var(--green);
+  border-color: rgba(34,197,94,0.25);
+}
+
+/* ── Filter segmented control ────────────────────────────────────────────── */
+.seg {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+.seg-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 120ms ease;
+}
+.seg-btn:hover { color: var(--text-primary); }
+.seg-btn[data-active='true'] {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── Icon button (ghost) ─────────────────────────────────────────────────── */
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  transition: color 120ms ease, background 120ms ease;
+}
+.icon-btn:hover { color: var(--text-primary); background: var(--bg-panel-hover); }
 
 /* ── Utility ─────────────────────────────────────────────────────────────── */
 .positive { color: var(--green); }
