@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Activity, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { fmtAum } from '@/lib/format';
 
 interface SearchResult {
@@ -30,12 +30,12 @@ export default function Header() {
     const tick = () => {
       const et = new Date().toLocaleString('en-US', {
         timeZone: 'America/New_York',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+        hour: '2-digit', minute: '2-digit', hour12: false,
       });
       setTime(`${et} ET`);
     };
     tick();
-    const id = setInterval(tick, 1000);
+    const id = setInterval(tick, 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -93,55 +93,73 @@ export default function Header() {
 
   return (
     <header style={{
-      background: 'var(--bg-panel)',
+      background: 'var(--surface)',
       borderBottom: '1px solid var(--border)',
-      padding: '0 20px',
-      height: '52px',
+      padding: '0 24px',
+      height: '60px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: '12px',
+      gap: '16px',
       position: 'sticky',
       top: 0,
       zIndex: 100,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-          <div style={{
-            width: '28px', height: '28px',
-            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-            borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Activity size={16} color="#fff" />
-          </div>
-          <span style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '-0.3px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexShrink: 0 }}>
+        <a href="/" style={{
+          display: 'flex', alignItems: 'baseline', gap: '8px',
+          textDecoration: 'none', color: 'var(--text)',
+        }}>
+          <span style={{ fontSize: 'var(--fs-md)', fontWeight: 600, letterSpacing: '-0.3px' }}>
             ETF Monitor
           </span>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', fontWeight: 500 }}>
+            US
+          </span>
         </a>
-        <span style={{ fontSize: '10px', fontWeight: 600, color: '#3b82f6', background: 'rgba(59,130,246,0.12)', padding: '2px 6px', borderRadius: '4px' }}>
-          US
-        </span>
+
+        <nav className="header-nav" style={{ display: 'flex', gap: '4px' }}>
+          {[{ label: 'Overview', href: '/' }, { label: 'Screener', href: '/screener' }].map(({ label, href }) => (
+            <a key={label} href={href} style={{
+              fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textDecoration: 'none',
+              padding: '6px 12px', borderRadius: 'var(--radius-sm)', transition: 'all 120ms ease',
+              whiteSpace: 'nowrap', fontWeight: 500,
+            }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.color = 'var(--text)'; (e.target as HTMLElement).style.background = 'var(--surface-soft)'; }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.color = 'var(--text-muted)'; (e.target as HTMLElement).style.background = 'transparent'; }}
+            >{label}</a>
+          ))}
+        </nav>
       </div>
 
-      <div className="header-search-wrap" style={{ position: 'relative', flex: 1, maxWidth: '480px' }}>
+      <div className="header-search-wrap" style={{ position: 'relative', flex: 1, maxWidth: '440px' }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
-          background: 'var(--bg-primary)', border: '1px solid var(--border)',
-          borderRadius: '6px', padding: '0 10px', height: '32px',
-        }}>
-          <Search size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+          background: 'var(--surface-soft)',
+          border: '1px solid transparent',
+          borderRadius: 'var(--radius-sm)', padding: '0 12px', height: '36px',
+          transition: 'border-color 120ms ease, background 120ms ease',
+        }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.background = 'var(--surface)'; }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'var(--surface-soft)'; }}
+        >
+          <Search size={14} color="var(--text-subtle)" style={{ flexShrink: 0 }} />
           <input
             ref={inputRef}
             value={query}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             onFocus={() => query && results.length > 0 && setShowDrop(true)}
-            placeholder="Search ticker or fund name…"
-            style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '13px', flex: 1, minWidth: 0 }}
+            placeholder="Search ticker or fund name"
+            style={{
+              background: 'none', border: 'none', outline: 'none',
+              color: 'var(--text)', fontSize: 'var(--fs-sm)',
+              flex: 1, minWidth: 0, fontFamily: 'inherit',
+            }}
           />
           {query && (
             <button onClick={() => { setQuery(''); setResults([]); setShowDrop(false); inputRef.current?.focus(); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-muted)', display: 'flex' }}>
+              className="icon-btn" style={{ padding: 2 }}>
               <X size={12} />
             </button>
           )}
@@ -149,9 +167,9 @@ export default function Header() {
 
         {showDrop && results.length > 0 && (
           <div ref={dropRef} style={{
-            position: 'absolute', top: '36px', left: 0, right: 0,
-            background: 'var(--bg-panel)', border: '1px solid var(--border-bright)',
-            borderRadius: '8px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            position: 'absolute', top: '42px', left: 0, right: 0,
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)',
             overflow: 'hidden', zIndex: 200,
           }}>
             {results.map((r, i) => (
@@ -160,55 +178,45 @@ export default function Header() {
                 onMouseEnter={() => setActiveIdx(i)}
                 onMouseLeave={() => setActiveIdx(-1)}
                 style={{
-                  padding: '9px 14px', display: 'flex', alignItems: 'center', gap: '10px',
-                  cursor: 'pointer', borderBottom: i < results.length - 1 ? '1px solid var(--border)' : 'none',
-                  background: i === activeIdx ? 'var(--bg-panel-hover)' : 'transparent',
+                  padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '12px',
+                  cursor: 'pointer',
+                  background: i === activeIdx ? 'var(--surface-hover)' : 'transparent',
+                  borderBottom: i < results.length - 1 ? '1px solid var(--border)' : 'none',
                 }}
               >
-                <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--text-primary)', minWidth: '48px' }}>
+                <span className="mono" style={{
+                  fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)', minWidth: '52px',
+                }}>
                   {r.ticker}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {r.name}
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{r.issuer} · {r.category}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)' }}>{r.issuer} · {r.category}</div>
                 </div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0 }}>
+                <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', flexShrink: 0 }}>
                   {fmtAum(r.aum ?? 0)}
                 </span>
               </div>
             ))}
-            <div style={{ padding: '5px 14px', borderTop: '1px solid var(--border)', fontSize: '10px', color: 'var(--text-muted)' }}>
+            <div style={{ padding: '6px 14px', borderTop: '1px solid var(--border)', fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', background: 'var(--surface-soft)' }}>
               ↑↓ navigate · Enter to open · Esc to close
             </div>
           </div>
         )}
         {searching && !showDrop && (
           <div style={{
-            position: 'absolute', top: '36px', left: 0, right: 0,
-            padding: '12px 14px', background: 'var(--bg-panel)', border: '1px solid var(--border)',
-            borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)', zIndex: 200,
+            position: 'absolute', top: '42px', left: 0, right: 0,
+            padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', fontSize: 'var(--fs-sm)', color: 'var(--text-subtle)', zIndex: 200,
           }}>Searching…</div>
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-        <nav className="header-nav" style={{ display: 'flex', gap: '2px' }}>
-          {[{ label: 'Overview', href: '/' }, { label: 'Screener', href: '/screener' }].map(({ label, href }) => (
-            <a key={label} href={href} style={{
-              fontSize: '13px', color: 'var(--text-secondary)', textDecoration: 'none',
-              padding: '4px 10px', borderRadius: '5px', transition: 'all 0.15s', whiteSpace: 'nowrap',
-            }}
-              onMouseEnter={e => { (e.target as HTMLElement).style.color = 'var(--text-primary)'; (e.target as HTMLElement).style.background = 'var(--bg-panel-hover)'; }}
-              onMouseLeave={e => { (e.target as HTMLElement).style.color = 'var(--text-secondary)'; (e.target as HTMLElement).style.background = 'transparent'; }}
-            >{label}</a>
-          ))}
-        </nav>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span className="live-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--green)', display: 'block' }} />
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{time || 'LIVE'}</span>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <span className="live-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--positive)', display: 'block' }} />
+        <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{time || 'LIVE'}</span>
       </div>
     </header>
   );

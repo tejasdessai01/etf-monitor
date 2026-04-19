@@ -4,15 +4,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { SlidersHorizontal, ArrowUpDown, RotateCcw, ChevronLeft } from 'lucide-react';
 import Header from '@/components/Header';
-import { fmtAum, fmtPct, fmtBps, chgClass } from '@/lib/format';
+import IssuerAvatar from '@/components/IssuerAvatar';
+import { fmtAum, fmtBps } from '@/lib/format';
 
 const CATEGORIES = ['All', 'US Equity', 'Fixed Income', 'Sector', 'Commodities', 'International', 'Digital Assets', 'Thematic', 'Leveraged'];
 const SORT_OPTIONS = [
   { value: 'aum', label: 'AUM' },
-  { value: 'expense_ratio', label: 'Expense Ratio' },
-  { value: 'ytd_return', label: 'YTD Return' },
-  { value: 'one_year_return', label: '1Y Return' },
-  { value: 'three_year_return', label: '3Y Return' },
+  { value: 'expense_ratio', label: 'Expense' },
+  { value: 'ytd_return', label: 'YTD' },
+  { value: 'one_year_return', label: '1Y' },
+  { value: 'three_year_return', label: '3Y' },
   { value: 'ticker', label: 'Ticker' },
 ];
 
@@ -104,121 +105,101 @@ export default function ScreenerPage() {
   }
 
   const totalPages = Math.ceil(total / LIMIT);
-
-  function SortArrow({ col }: { col: string }) {
-    if (sort !== col) return <ArrowUpDown size={10} style={{ opacity: 0.3 }} />;
-    return <span style={{ fontSize: '10px' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
-  }
-
   const hasFilters = filters.category !== 'All' || filters.issuer || filters.aumMin ||
     filters.aumMax || filters.expenseMax || filters.ytdMin || filters.oneYearMin;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <Header />
 
-      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px 20px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 24px 48px' }}>
         {/* Page header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
           <button
             onClick={() => router.push('/')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: 0 }}
+            className="btn-link"
+            style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}
           >
             <ChevronLeft size={14} /> Dashboard
           </button>
-          <span style={{ color: 'var(--border)', fontSize: '14px' }}>·</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <SlidersHorizontal size={16} color="#3b82f6" />
-            <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-              ETF Screener
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <span style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+              Screener
             </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'var(--border)', padding: '2px 8px', borderRadius: '10px' }}>
-              {loading ? '…' : total.toLocaleString()} ETFs
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-subtle)' }}>
+              {loading ? '…' : total.toLocaleString()} funds
             </span>
           </div>
           {hasFilters && (
-            <button
-              onClick={resetFilters}
-              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--text-secondary)', background: 'none', border: '1px solid var(--border)', borderRadius: '5px', padding: '4px 10px', cursor: 'pointer' }}
-            >
-              <RotateCcw size={11} /> Reset filters
+            <button onClick={resetFilters} className="btn btn-ghost" style={{ marginLeft: 'auto', height: 30 }}>
+              <RotateCcw size={12} /> Reset filters
             </button>
           )}
           <button
             onClick={() => setFiltersOpen(o => !o)}
-            className="screener-toggle-btn"
-            style={{ display: 'none', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--text-secondary)', background: 'none', border: '1px solid var(--border)', borderRadius: '5px', padding: '4px 10px', cursor: 'pointer' }}
+            className="btn btn-ghost screener-toggle-btn"
+            style={{ display: 'none', height: 30 }}
           >
-            <SlidersHorizontal size={11} /> {filtersOpen ? 'Hide' : 'Show'} filters
+            <SlidersHorizontal size={12} /> {filtersOpen ? 'Hide' : 'Show'} filters
           </button>
         </div>
 
-        <div className="screener-layout" style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+        <div className="screener-layout" style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
           {/* Filter sidebar */}
           {filtersOpen && (
-            <div className="screener-filters" style={{
-              width: '240px', flexShrink: 0, background: 'var(--bg-panel)',
-              border: '1px solid var(--border)', borderRadius: '8px', padding: '16px',
-              position: 'sticky', top: '64px',
-            }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '14px', letterSpacing: '0.3px' }}>
-                FILTERS
+            <div
+              className="screener-filters panel"
+              style={{ width: 260, flexShrink: 0, padding: 20, position: 'sticky', top: 76 }}
+            >
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 14 }}>
+                Filters
               </div>
 
               {/* Category */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Category
-                </label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ marginBottom: 18 }}>
+                <label style={labelStyle}>Category</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {CATEGORIES.map(c => (
-                    <button key={c} onClick={() => setFilter('category', c)} style={{
-                      textAlign: 'left', fontSize: '12px', padding: '5px 8px', borderRadius: '4px', border: 'none',
-                      cursor: 'pointer', transition: 'all 0.1s',
-                      background: filters.category === c ? 'rgba(59,130,246,0.15)' : 'transparent',
-                      color: filters.category === c ? '#3b82f6' : 'var(--text-secondary)',
-                      fontWeight: filters.category === c ? 600 : 400,
-                    }}>{c}</button>
+                    <button
+                      key={c}
+                      onClick={() => setFilter('category', c)}
+                      style={{
+                        textAlign: 'left', fontSize: 'var(--fs-sm)', padding: '6px 10px',
+                        borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
+                        transition: 'all 120ms ease',
+                        background: filters.category === c ? 'var(--accent-soft)' : 'transparent',
+                        color: filters.category === c ? 'var(--accent)' : 'var(--text-muted)',
+                        fontWeight: filters.category === c ? 600 : 400,
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      {c}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border)', margin: '14px 0' }} />
+              <div style={{ borderTop: '1px solid var(--border)', margin: '16px 0' }} />
 
-              {/* Issuer */}
-              <FilterInput label="Issuer" placeholder="e.g. BlackRock, Vanguard" value={filters.issuer} onChange={v => setFilter('issuer', v)} />
+              <FilterInput label="Issuer" placeholder="BlackRock, Vanguard…" value={filters.issuer} onChange={v => setFilter('issuer', v)} />
 
-              {/* AUM */}
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  AUM ($M)
-                </label>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <input
-                    type="number" placeholder="Min" value={filters.aumMin}
-                    onChange={e => setFilter('aumMin', e.target.value)}
-                    style={inputStyle}
-                  />
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>–</span>
-                  <input
-                    type="number" placeholder="Max" value={filters.aumMax}
-                    onChange={e => setFilter('aumMax', e.target.value)}
-                    style={inputStyle}
-                  />
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>AUM ($M)</label>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input type="number" placeholder="Min" value={filters.aumMin} onChange={e => setFilter('aumMin', e.target.value)} className="input" />
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)' }}>–</span>
+                  <input type="number" placeholder="Max" value={filters.aumMax} onChange={e => setFilter('aumMax', e.target.value)} className="input" />
                 </div>
               </div>
 
-              {/* Expense ratio */}
-              <FilterInput label="Max Expense Ratio (%)" placeholder="e.g. 0.5" value={filters.expenseMax} onChange={v => setFilter('expenseMax', v)} type="number" />
+              <FilterInput label="Max expense ratio (%)" placeholder="0.5" value={filters.expenseMax} onChange={v => setFilter('expenseMax', v)} type="number" />
 
               {perfAvailable && (
                 <>
-                  <div style={{ borderTop: '1px solid var(--border)', margin: '14px 0' }} />
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Performance (min %)
-                  </div>
-                  <FilterInput label="YTD Return" placeholder="e.g. 5" value={filters.ytdMin} onChange={v => setFilter('ytdMin', v)} type="number" />
-                  <FilterInput label="1Y Return" placeholder="e.g. 10" value={filters.oneYearMin} onChange={v => setFilter('oneYearMin', v)} type="number" />
+                  <div style={{ borderTop: '1px solid var(--border)', margin: '16px 0' }} />
+                  <div style={{ ...labelStyle, marginBottom: 12 }}>Min performance (%)</div>
+                  <FilterInput label="YTD Return" placeholder="5" value={filters.ytdMin} onChange={v => setFilter('ytdMin', v)} type="number" />
+                  <FilterInput label="1Y Return" placeholder="10" value={filters.oneYearMin} onChange={v => setFilter('oneYearMin', v)} type="number" />
                 </>
               )}
             </div>
@@ -226,37 +207,41 @@ export default function ScreenerPage() {
 
           {/* Results */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+            <div className="panel" style={{ overflow: 'hidden' }}>
               {/* Sort bar */}
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sort by:</span>
-                {SORT_OPTIONS.filter(o => o.value !== 'ytd_return' && o.value !== 'one_year_return' && o.value !== 'three_year_return' || perfAvailable).map(o => (
-                  <button key={o.value} onClick={() => handleSort(o.value)} style={{
-                    fontSize: '11px', padding: '3px 10px', borderRadius: '4px', border: 'none', cursor: 'pointer',
-                    background: sort === o.value ? 'rgba(59,130,246,0.15)' : 'transparent',
-                    color: sort === o.value ? '#3b82f6' : 'var(--text-secondary)',
-                    fontWeight: sort === o.value ? 600 : 400,
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                  }}>
-                    {o.label} {sort === o.value && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
-                  </button>
-                ))}
-                <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)' }}>
+              <div style={{
+                padding: '12px 20px', borderBottom: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              }}>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', fontWeight: 500 }}>Sort by</span>
+                <div className="seg">
+                  {SORT_OPTIONS.filter(o => ['ytd_return','one_year_return','three_year_return'].indexOf(o.value) === -1 || perfAvailable).map(o => (
+                    <button
+                      key={o.value}
+                      className="seg-btn"
+                      data-active={sort === o.value}
+                      onClick={() => handleSort(o.value)}
+                    >
+                      {o.label} {sort === o.value && <span style={{ marginLeft: 4 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                    </button>
+                  ))}
+                </div>
+                <span style={{ marginLeft: 'auto', fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)' }}>
                   {loading ? 'Loading…' : `${page * LIMIT + 1}–${Math.min((page + 1) * LIMIT, total)} of ${total.toLocaleString()}`}
                 </span>
               </div>
 
               {/* Table */}
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
-                  <thead style={{ background: 'var(--bg-panel)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+                  <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       <TH label="Fund" col="ticker" sort={sort} sortDir={sortDir} onSort={handleSort} align="left" />
                       <TH label="AUM" col="aum" sort={sort} sortDir={sortDir} onSort={handleSort} />
-                      <TH label="Exp Ratio" col="expense_ratio" sort={sort} sortDir={sortDir} onSort={handleSort} />
+                      <TH label="Exp" col="expense_ratio" sort={sort} sortDir={sortDir} onSort={handleSort} />
                       {perfAvailable && <TH label="YTD" col="ytd_return" sort={sort} sortDir={sortDir} onSort={handleSort} />}
                       {perfAvailable && <TH label="1Y" col="one_year_return" sort={sort} sortDir={sortDir} onSort={handleSort} />}
-                      {perfAvailable && <TH label="3Y Ann." col="three_year_return" sort={sort} sortDir={sortDir} onSort={handleSort} />}
+                      {perfAvailable && <TH label="3Y ann." col="three_year_return" sort={sort} sortDir={sortDir} onSort={handleSort} />}
                     </tr>
                   </thead>
                   <tbody>
@@ -264,16 +249,16 @@ export default function ScreenerPage() {
                       ? Array.from({ length: 10 }).map((_, i) => (
                           <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                             {Array.from({ length: perfAvailable ? 6 : 3 }).map((_, j) => (
-                              <td key={j} style={{ padding: '10px 14px' }}>
-                                <div className="skeleton" style={{ height: '12px', width: j === 0 ? '120px' : '60px' }} />
+                              <td key={j} style={{ padding: '12px 20px' }}>
+                                <div className="skeleton" style={{ height: 12, width: j === 0 ? 140 : 60 }} />
                               </td>
                             ))}
                           </tr>
                         ))
                       : data.length === 0
                       ? (
-                        <tr><td colSpan={perfAvailable ? 6 : 3} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                          No ETFs match your filters. Try adjusting or resetting the filters.
+                        <tr><td colSpan={perfAvailable ? 6 : 3} style={{ padding: 40, textAlign: 'center', color: 'var(--text-subtle)', fontSize: 'var(--fs-sm)' }}>
+                          No ETFs match your filters. Try adjusting or resetting.
                         </td></tr>
                       )
                       : data.map((row, idx) => (
@@ -283,45 +268,34 @@ export default function ScreenerPage() {
                             style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
                             onClick={() => router.push(`/etf/${row.ticker}`)}
                           >
-                            <td style={{ padding: '9px 14px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', minWidth: '24px', textAlign: 'right' }}>
+                            <td style={{ padding: '12px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', minWidth: 28, textAlign: 'right' }}>
                                   {page * LIMIT + idx + 1}
                                 </span>
-                                <div>
-                                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                <IssuerAvatar name={row.issuer} size="sm" />
+                                <div style={{ minWidth: 0 }}>
+                                  <div className="mono" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)' }}>
                                     {row.ticker}
                                   </div>
-                                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {row.name}
                                   </div>
-                                  <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
-                                    {row.issuer} · <span style={{ color: '#64748b' }}>{row.category}</span>
+                                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)' }}>
+                                    {row.issuer} · {row.category}
                                   </div>
                                 </div>
                               </div>
                             </td>
-                            <td style={{ padding: '9px 14px', textAlign: 'right', fontSize: '12px', fontWeight: 600, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                            <td className="tabular" style={{ padding: '12px 20px', textAlign: 'right', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text)' }}>
                               {fmtAum(row.aum ?? 0)}
                             </td>
-                            <td style={{ padding: '9px 14px', textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            <td className="tabular" style={{ padding: '12px 20px', textAlign: 'right', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
                               {fmtBps(row.expense_ratio ?? 0)}
                             </td>
-                            {perfAvailable && (
-                              <td style={{ padding: '9px 14px', textAlign: 'right' }}>
-                                <PerfCell v={row.ytd_return} />
-                              </td>
-                            )}
-                            {perfAvailable && (
-                              <td style={{ padding: '9px 14px', textAlign: 'right' }}>
-                                <PerfCell v={row.one_year_return} />
-                              </td>
-                            )}
-                            {perfAvailable && (
-                              <td style={{ padding: '9px 14px', textAlign: 'right' }}>
-                                <PerfCell v={row.three_year_return} />
-                              </td>
-                            )}
+                            {perfAvailable && <td style={{ padding: '12px 20px', textAlign: 'right' }}><PerfCell v={row.ytd_return} /></td>}
+                            {perfAvailable && <td style={{ padding: '12px 20px', textAlign: 'right' }}><PerfCell v={row.one_year_return} /></td>}
+                            {perfAvailable && <td style={{ padding: '12px 20px', textAlign: 'right' }}><PerfCell v={row.three_year_return} /></td>}
                           </tr>
                         ))
                     }
@@ -331,18 +305,18 @@ export default function ScreenerPage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)' }}>
                     Page {page + 1} of {totalPages}
                   </span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
                     <PagBtn label="← Prev" disabled={page === 0} onClick={() => setPage(p => p - 1)} />
                     {page > 1 && <PagBtn label="1" disabled={false} onClick={() => setPage(0)} />}
-                    {page > 2 && <span style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '3px 6px' }}>…</span>}
+                    {page > 2 && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', padding: '4px 6px' }}>…</span>}
                     {[page - 1, page, page + 1].filter(n => n >= 0 && n < totalPages).map(n => (
                       <PagBtn key={n} label={String(n + 1)} disabled={false} onClick={() => setPage(n)} active={n === page} />
                     ))}
-                    {page < totalPages - 3 && <span style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '3px 6px' }}>…</span>}
+                    {page < totalPages - 3 && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', padding: '4px 6px' }}>…</span>}
                     {page < totalPages - 2 && <PagBtn label={String(totalPages)} disabled={false} onClick={() => setPage(totalPages - 1)} />}
                     <PagBtn label="Next →" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} />
                   </div>
@@ -351,7 +325,13 @@ export default function ScreenerPage() {
             </div>
 
             {!perfAvailable && (
-              <div style={{ marginTop: '10px', padding: '10px 14px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: '6px', fontSize: '12px', color: '#eab308' }}>
+              <div style={{
+                marginTop: 12, padding: '12px 16px',
+                background: 'var(--surface-soft)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--fs-sm)', color: 'var(--text-muted)',
+              }}>
                 Performance data not yet populated. Run the SQL migration in Supabase, then trigger the refresh-performance workflow to enable YTD/1Y/3Y filters and columns.
               </div>
             )}
@@ -362,54 +342,58 @@ export default function ScreenerPage() {
   );
 }
 
+const labelStyle: React.CSSProperties = {
+  fontSize: 'var(--fs-xs)',
+  color: 'var(--text-subtle)',
+  display: 'block',
+  marginBottom: 6,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.6px',
+};
+
 function FilterInput({ label, placeholder, value, onChange, type = 'text' }: {
   label: string; placeholder: string; value: string; onChange: (v: string) => void; type?: string;
 }) {
   return (
-    <div style={{ marginBottom: '14px' }}>
-      <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-        {label}
-      </label>
+    <div style={{ marginBottom: 14 }}>
+      <label style={labelStyle}>{label}</label>
       <input
         type={type} placeholder={placeholder} value={value}
         onChange={e => onChange(e.target.value)}
-        style={inputStyle}
+        className="input"
       />
     </div>
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', background: 'var(--bg-primary)', border: '1px solid var(--border)',
-  borderRadius: '5px', color: 'var(--text-primary)', fontSize: '12px',
-  padding: '5px 9px', outline: 'none',
-};
-
 function PerfCell({ v }: { v?: number | null }) {
-  if (v === null || v === undefined) return <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>—</span>;
+  if (v === null || v === undefined) return <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-subtle)' }}>—</span>;
   const pct = (v * 100).toFixed(1);
-  const color = v >= 0 ? 'var(--green)' : 'var(--red)';
-  return <span style={{ fontSize: '12px', fontWeight: 600, fontFamily: 'monospace', color }}>{v >= 0 ? '+' : ''}{pct}%</span>;
+  const color = v >= 0 ? 'var(--positive)' : 'var(--negative)';
+  return <span className="tabular" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color }}>{v >= 0 ? '+' : ''}{pct}%</span>;
 }
 
 function TH({ label, col, sort, sortDir, onSort, align = 'right' }: {
   label: string; col: string; sort: string; sortDir: string; onSort: (c: string) => void; align?: string;
 }) {
+  const isActive = sort === col;
   return (
     <th
       onClick={() => onSort(col)}
       style={{
-        padding: '8px 14px', textAlign: align as 'left' | 'right', fontSize: '10px',
-        color: sort === col ? '#3b82f6' : 'var(--text-muted)',
-        textTransform: 'uppercase', letterSpacing: '0.6px',
+        padding: '10px 20px', textAlign: align as 'left' | 'right', fontSize: 'var(--fs-xs)',
+        color: isActive ? 'var(--text)' : 'var(--text-subtle)',
+        textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600,
         cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+        background: 'var(--surface)',
       }}
     >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         {label}
-        {sort === col
-          ? <span style={{ fontSize: '10px' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>
-          : <ArrowUpDown size={9} style={{ opacity: 0.3 }} />
+        {isActive
+          ? <span style={{ fontSize: 10 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>
+          : <ArrowUpDown size={10} style={{ opacity: 0.35 }} />
         }
       </span>
     </th>
@@ -419,11 +403,13 @@ function TH({ label, col, sort, sortDir, onSort, align = 'right' }: {
 function PagBtn({ label, disabled, onClick, active }: { label: string; disabled: boolean; onClick: () => void; active?: boolean }) {
   return (
     <button onClick={onClick} disabled={disabled} style={{
-      padding: '3px 8px', fontSize: '11px', borderRadius: '4px',
+      padding: '5px 10px', fontSize: 'var(--fs-xs)', borderRadius: 'var(--radius-sm)',
       border: '1px solid var(--border)',
-      background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
-      color: disabled ? 'var(--text-muted)' : active ? '#3b82f6' : 'var(--text-primary)',
+      background: active ? 'var(--accent-soft)' : 'var(--surface)',
+      color: disabled ? 'var(--text-subtle)' : active ? 'var(--accent)' : 'var(--text)',
       cursor: disabled ? 'default' : 'pointer',
+      fontFamily: 'inherit',
+      fontWeight: active ? 600 : 500,
     }}>{label}</button>
   );
 }

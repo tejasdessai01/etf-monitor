@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Building2 } from 'lucide-react';
 import { fmtAum } from '@/lib/format';
+import IssuerAvatar from './IssuerAvatar';
 import type { ETF } from '@/types';
 
 interface IssuerRow {
@@ -39,61 +39,45 @@ export default function IssuerSnapshot() {
         marketShare: totalAum > 0 ? aum / totalAum : 0,
       }))
       .sort((a, b) => b.totalAum - a.totalAum)
-      .slice(0, 10);
+      .slice(0, 6);
   }, [etfs]);
 
-  const maxAum = issuers[0]?.totalAum ?? 1;
-
   return (
-    <div className="panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="panel-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Building2 size={14} color="var(--text-secondary)" />
-          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Issuers by AUM</span>
+        <div>
+          <div className="panel-title">Top issuers</div>
+          <div className="panel-subtitle">By total AUM</div>
         </div>
-        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>Tracked universe</span>
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1, padding: '12px 18px' }}>
+      <div style={{ padding: '6px 8px' }}>
         {loading
-          ? Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} style={{ marginBottom: '14px' }}>
-                <div className="skeleton" style={{ height: '10px', width: '80px', marginBottom: '6px' }} />
-                <div className="skeleton" style={{ height: '6px', width: '100%', borderRadius: '3px' }} />
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} style={{ padding: '10px 12px', display: 'flex', gap: 10 }}>
+                <div className="skeleton" style={{ width: 24, height: 24, borderRadius: '50%' }} />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton" style={{ height: 10, width: '55%', marginBottom: 5 }} />
+                  <div className="skeleton" style={{ height: 9, width: '30%' }} />
+                </div>
               </div>
             ))
-          : issuers.map((row) => {
-              const pct = (row.totalAum / maxAum) * 100;
-              return (
-                <div key={row.issuer} style={{ marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-primary)' }}>
-                        {row.issuer}
-                      </span>
-                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                        {row.etfCount} funds
-                      </span>
-                    </div>
-                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtAum(row.totalAum)}
-                    </span>
+          : issuers.map(row => (
+              <div key={row.issuer} className="list-row" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <IssuerAvatar name={row.issuer} size="sm" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text)' }}>
+                    {row.issuer}
                   </div>
-                  <div style={{ background: 'var(--bg-subtle)', borderRadius: '3px', height: '4px', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${pct}%`,
-                      background: 'var(--accent)',
-                      borderRadius: '3px',
-                      transition: 'width 0.5s ease',
-                    }} />
-                  </div>
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '3px', textAlign: 'right' }}>
-                    {(row.marketShare * 100).toFixed(1)}% share
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', marginTop: 1 }}>
+                    {row.etfCount} funds · {(row.marketShare * 100).toFixed(1)}% share
                   </div>
                 </div>
-              );
-            })
+                <span className="tabular" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text)' }}>
+                  {fmtAum(row.totalAum)}
+                </span>
+              </div>
+            ))
         }
       </div>
     </div>

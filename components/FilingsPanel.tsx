@@ -1,21 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { FileText, ExternalLink, RefreshCw, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshCw, Sparkles, ChevronRight } from 'lucide-react';
 import { fmtRelative } from '@/lib/format';
+import IssuerAvatar from './IssuerAvatar';
 import type { Filing } from '@/types';
 
 const FORM_LABELS: Record<string, string> = {
-  'N-1A':    'New Fund',
+  'N-1A':    'New fund',
   '485BPOS': 'Update',
   'N-14':    'Merger',
 };
 
+type FilterKey = 'all' | 'N-1A' | '485BPOS';
+
+function dateGroup(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yest = new Date(today.getTime() - 86400000);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(d, today)) return 'Today';
+  if (sameDay(d, yest)) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function FilingsPanel() {
   const [filings, setFilings] = useState<Filing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'N-1A' | '485BPOS'>('all');
+  const [filter, setFilter] = useState<FilterKey>('all');
   const [lastUpdated, setLastUpdated] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [loadingSummary, setLoadingSummary] = useState<Record<string, boolean>>({});
 
@@ -51,17 +66,40 @@ export default function FilingsPanel() {
 
   useEffect(() => { load(); }, []);
 
-  const displayed = filter === 'all'
-    ? filings
-    : filings.filter(f => f.formType === filter);
+  const displayed = useMemo(
+    () => filter === 'all' ? filings : filings.filter(f => f.formType === filter),
+    [filings, filter],
+  );
+
+  const grouped = useMemo(() => {
+    const out: Array<{ label: string; items: Filing[] }> = [];
+    let current = '';
+    for (const f of displayed) {
+      const label = dateGroup(f.filedAt);
+      if (label !== current) {
+        out.push({ label, items: [] });
+        current = label;
+      }
+      out[out.length - 1].items.push(f);
+    }
+    return out;
+  }, [displayed]);
+
+  function toggle(id: string, f: Filing) {
+    if (expanded === id) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(id);
+    if (!summaries[id]) summarize(f);
+  }
 
   return (
-    <div className="panel" id="filings" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="panel" id="filings" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div className="panel-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FileText size={14} color="var(--text-secondary)" />
-          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>SEC Filings</span>
-          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>Last 30 days</span>
+        <div>
+          <div className="panel-title">SEC Filings</div>
+          <div className="panel-subtitle">Last 30 days · updated {lastUpdated ? fmtRelative(lastUpdated) : 'just now'}</div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div className="seg">
@@ -72,120 +110,121 @@ export default function FilingsPanel() {
                 data-active={filter === f}
                 onClick={() => setFilter(f)}
               >
-                {f === 'all' ? 'All' : f}
+                {f === 'all' ? 'All' : f === 'N-1A' ? 'New funds' : 'Updates'}
               </button>
             ))}
           </div>
           <button onClick={load} className="icon-btn" title="Refresh">
-            <RefreshCw size={12} />
+            <RefreshCw size={14} />
           </button>
         </div>
       </div>
 
-      <div style={{ overflowY: 'auto', flex: 1, padding: '6px 6px' }}>
+      <div style={{ overflowY: 'auto' }}>
         {loading ? (
           Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} style={{ padding: '12px 18px' }}>
-              <div className="skeleton" style={{ height: '11px', width: '70%', marginBottom: '6px' }} />
-              <div className="skeleton" style={{ height: '9px', width: '40%' }} />
+            <div key={i} style={{ padding: '16px 24px', display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)' }}>
+              <div className="skeleton" style={{ width: 32, height: 32, borderRadius: '50%' }} />
+              <div style={{ flex: 1 }}>
+                <div className="skeleton" style={{ height: 12, width: '60%', marginBottom: 6 }} />
+                <div className="skeleton" style={{ height: 10, width: '40%' }} />
+              </div>
             </div>
           ))
         ) : displayed.length === 0 ? (
-          <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
+          <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text-subtle)', fontSize: 'var(--fs-sm)' }}>
             No filings found. SEC EDGAR may be unavailable.
           </div>
         ) : (
-          displayed.map((f) => (
-            <div
-              key={f.id}
-              className="list-row"
-              onClick={() => window.open(f.url, '_blank')}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <span className={f.formType === 'N-1A' ? 'pill pill-accent' : 'pill'}>
-                      {FORM_LABELS[f.formType] ?? f.formType}
-                    </span>
-                    {f.isNew && <span className="pill pill-positive">New</span>}
-                  </div>
-                  <div style={{
-                    fontSize: 'var(--fs-sm)',
-                    color: 'var(--text-primary)',
-                    fontWeight: 500,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {f.entityName}
-                  </div>
-                  {f.description && (
-                    <div style={{
-                      fontSize: 'var(--fs-xs)',
-                      color: 'var(--text-secondary)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      marginTop: '2px',
-                    }}>
-                      {f.description}
+          grouped.map(group => (
+            <div key={group.label}>
+              <div className="feed-date">{group.label}</div>
+              {group.items.map(f => {
+                const isExpanded = expanded === f.id;
+                const tagClass = f.formType === 'N-1A'
+                  ? 'tag tag-positive'
+                  : f.formType === 'N-14'
+                    ? 'tag tag-accent'
+                    : 'tag';
+                return (
+                  <div
+                    key={f.id}
+                    className={`feed-item${f.isNew ? ' is-new' : ''}`}
+                    onClick={() => toggle(f.id, f)}
+                  >
+                    <IssuerAvatar name={f.entityName} size="md" />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span className={tagClass}>{FORM_LABELS[f.formType] ?? f.formType}</span>
+                        <span className="tag tag-mono">{f.formType}</span>
+                        {f.isNew && <span className="tag tag-accent">New</span>}
+                      </div>
+                      <div style={{
+                        fontSize: 'var(--fs-base)',
+                        fontWeight: 500,
+                        color: 'var(--text)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        letterSpacing: '-0.1px',
+                      }}>
+                        {f.entityName}
+                      </div>
+                      {f.description && (
+                        <div style={{
+                          fontSize: 'var(--fs-sm)',
+                          color: 'var(--text-muted)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          marginTop: 2,
+                        }}>
+                          {f.description}
+                        </div>
+                      )}
+                      {isExpanded && (
+                        <div style={{
+                          marginTop: 12,
+                          padding: 14,
+                          background: 'var(--surface-soft)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: 'var(--fs-sm)',
+                          color: 'var(--text)',
+                          lineHeight: 1.6,
+                        }} onClick={e => e.stopPropagation()}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)', marginBottom: 8, fontWeight: 500 }}>
+                            <Sparkles size={11} /> AI summary
+                          </div>
+                          {loadingSummary[f.id] || !summaries[f.id]
+                            ? <span style={{ color: 'var(--text-subtle)' }}>Generating summary…</span>
+                            : <span>{summaries[f.id]}</span>}
+                          <div style={{ marginTop: 12, display: 'flex', gap: 12, fontSize: 'var(--fs-xs)' }}>
+                            <a href={f.url} target="_blank" rel="noopener noreferrer"
+                               onClick={e => e.stopPropagation()}
+                               style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
+                              Open on SEC EDGAR →
+                            </a>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {summaries[f.id] && (
-                    <div style={{
-                      fontSize: 'var(--fs-xs)',
-                      color: 'var(--text-secondary)',
-                      marginTop: '8px',
-                      lineHeight: 1.5,
-                      background: 'var(--bg-subtle)',
-                      borderLeft: '2px solid var(--accent-border)',
-                      padding: '8px 10px',
-                      borderRadius: '0 6px 6px 0',
-                    }}>
-                      {summaries[f.id]}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0, paddingTop: 2 }}>
+                      <span className="tabular" style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-subtle)' }}>
+                        {fmtRelative(f.filedAt)}
+                      </span>
+                      <ChevronRight
+                        size={14}
+                        color="var(--text-subtle)"
+                        style={{ transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 120ms ease' }}
+                      />
                     </div>
-                  )}
-                  {!summaries[f.id] && (
-                    <button
-                      onClick={e => { e.stopPropagation(); summarize(f); }}
-                      disabled={loadingSummary[f.id]}
-                      style={{
-                        marginTop: '6px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: 'var(--fs-xs)',
-                        color: 'var(--text-muted)',
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: loadingSummary[f.id] ? 'default' : 'pointer',
-                      }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-                    >
-                      <Sparkles size={10} />
-                      {loadingSummary[f.id] ? 'Summarizing…' : 'AI summary'}
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
-                  <ExternalLink size={11} color="var(--text-muted)" />
-                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                    {fmtRelative(f.filedAt)}
-                  </span>
-                </div>
-              </div>
+                  </div>
+                );
+              })}
             </div>
           ))
         )}
       </div>
-
-      {lastUpdated && (
-        <div style={{ padding: '8px 18px', borderTop: '1px solid var(--border)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-          SEC EDGAR · updated {fmtRelative(lastUpdated)}
-        </div>
-      )}
     </div>
   );
 }
